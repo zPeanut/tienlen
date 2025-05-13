@@ -16,6 +16,7 @@
 #define NUM_PLAYERS 1
 
 char players[NUM_PLAYERS][30];
+Card hands[NUM_PLAYERS][13];
 
 void init_deck(Deck *deck) {
     int i = 0;
@@ -80,26 +81,29 @@ int main() {
         player++;
     }
 
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        send(client_sockets[i], "Game Start!\n", strlen("Game Start!\n"), 0);
-        printf("%s\n", players[i]);
-    }
-
-
     // gameplay logic
     Deck *deck = malloc(sizeof(*deck));
     init_deck(deck);
+
+    // shuffling cards and dealing
     shuffle_deck(deck);
-    Card hands[4][13];
+    char* str1 = "Shuffling cards...\n";
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        send(client_sockets[i], str1, strlen(str1), 0);
+        usleep(500 * 1000);
+    }
+
+    char* str2 = "Dealing cards...\n";
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        send(client_sockets[i], str2, strlen(str2), 0);
+        usleep(500 * 1000);
+    }
 
     for (int j = 0; j < 13; j++) {
-        for (int i = 0; i < 4 /* NUM PLAYERS */; i++) {
-            usleep(150000);
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            usleep(150 * 1000);
+            printf("f");
             hands[i][j] = deck->cards[deck->index];
-            if (i == 0) {
-                printf("Player %d Card %d", i, j);
-                print_card(deck->cards[deck->index]);
-            }
             deck->index++;
         }
     }

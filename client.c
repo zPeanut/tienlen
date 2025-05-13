@@ -34,6 +34,9 @@ int main() {
     read(sock, buffer, sizeof(buffer));
     printf("Server: %s", buffer);
 
+    read(sock, buffer, sizeof(buffer));
+    printf("Server: %s", buffer);
+
     // game logic
 
 
