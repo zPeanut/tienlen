@@ -74,7 +74,9 @@ int main() {
         client_sockets[player] = new_socket;
 
         char name[30];
-        recv(new_socket, name, sizeof(name) - 1, 0);
+        size_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
+
+        name[b_recv] = '\0';
         printf("Player %s connected.\n", name);
         strcpy(players[player], name);
 
@@ -101,7 +103,6 @@ int main() {
 
     for (int j = 0; j < 13; j++) {
         for (int i = 0; i < NUM_PLAYERS; i++) {
-            printf("f");
             hands[i][j] = deck->cards[deck->index];
             deck->index++;
         }
