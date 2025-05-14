@@ -238,15 +238,32 @@ int main() {
         draw_hand(win, y, x, hand_size, player_deck, highlight, selected_cards);
 
         if (played) {
-            char msg[208] = { 0 };
+            int x_pos = 14; // starting x pos after "you played: "
+            mvwhline(cards, 2, 2, ' ', 40);
+            mvwprintw(cards, 2, 2, "You played: ");
+
             for (int i = 0; i < played_hand_size; i++) {
-                strcat(msg, return_card(played_hand[i]));
+                char *msg = return_card(played_hand[i]);
+
+                if (strstr(msg, PIK)) wattron(cards, COLOR_PAIR(WHITE));
+                else if (strstr(msg, KREUZ)) wattron(cards, COLOR_PAIR(BLUE));
+                else if (strstr(msg, KARO)) wattron(cards, COLOR_PAIR(YELLOW));
+                else if (strstr(msg, HERZ)) wattron(cards, COLOR_PAIR(RED));
+
+                mvwprintw(cards, 2, x_pos, "%s", msg);
+                x_pos += (int) strlen(msg);
+
+                wattroff(cards, COLOR_PAIR(WHITE));
+                wattroff(cards, COLOR_PAIR(BLUE));
+                wattroff(cards, COLOR_PAIR(YELLOW));
+                wattroff(cards, COLOR_PAIR(RED));
+
+                free(msg);
             }
-            mvwhline(cards, 2, 2, ' ', strlen(msg) + 17);
-            mvwprintw(cards, 2, 2, "You played: %s", msg);
+
             wrefresh(cards);
-            played_hand_size = 0;
             memset(played_hand, 0, hand_size * sizeof(int));
+            played_hand_size = 0;
             played = 0;
         }
 
