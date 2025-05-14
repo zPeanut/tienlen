@@ -63,8 +63,9 @@ char* return_card(Card card) {
     return s;
 }
 
-void draw_hand(WINDOW *win, int y, int x, Card *player_deck, int hand_size, int highlight, int *selected_cards) {
-    for (int i = 0; i < hand_size; i++) {
+void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int hand_size, int highlight, int *selected_cards) {
+
+    for (int i = 0; i < loop_limit; i++) {
         char *s = return_card(player_deck[i]);
 
 
@@ -173,20 +174,8 @@ int main() {
                 mvwhline(win, y, 2, ' ', win_width - 10);
                 x = (win_width - total_len) / 2;
 
-                for (int j = 0; j <= i; j++) {
-                    char *s = return_card(player_deck[j]);
-                    if(strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
-                    if(strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
-                    if(strstr(s, KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
-                    if(strstr(s, HERZ) != NULL) wattron(win, COLOR_PAIR(RED));
-                    mvwprintw(win, y, x, "%s", s);
-                    wattroff(win, COLOR_PAIR(WHITE));
-                    wattroff(win, COLOR_PAIR(BLUE));
-                    wattroff(win, COLOR_PAIR(YELLOW));
-                    wattroff(win, COLOR_PAIR(RED));
-                    x += (int) strlen(s) + 2;
-                    free(s);
-                }
+                draw_hand(win, y, x, i + 1, player_deck, hand_size, highlight, selected_cards);
+
                 wrefresh(win);
                 usleep(100 * 1000);
             }
@@ -198,7 +187,7 @@ int main() {
         mvwhline(win, y, 2, ' ', win_width - 10);
         x = (win_width - total_len) / 2;
 
-        draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
+        draw_hand(win, y, x, hand_size, player_deck, hand_size, highlight, selected_cards);
 
         choice = wgetch(win);
 
