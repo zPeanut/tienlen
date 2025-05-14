@@ -172,9 +172,9 @@ int main() {
         mvwaddch(user_section_box, y, line_x, ACS_VLINE); // draw vertical line for connected users
     }
 
-    // underline for users panel
-    char *underline[30];
-    for (int i = x_max - 15; i > 3 * ((x_max - 10) / 4); i--) {
+    char *underline[30]; // underline for users panel
+
+    for (int i = x_max - 15; i > line_x; i--) { // range from right (x_max - 15) to left (3/4th of screen)
         strcat((char *) underline, " ");
     }
 
