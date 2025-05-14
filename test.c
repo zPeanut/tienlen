@@ -44,17 +44,6 @@ void shuffle_deck(Deck *deck) {
     }
 }
 
-int compare_by_suit(const void *a, const void *b) {
-
-    Card *card1 = (Card *) a;
-    Card *card2 = (Card *) b;
-
-    if (card1->suit != card2->suit) {
-        return (int) (card1->suit - card2->suit);
-    }
-    return (int) (card1->rank - card2->rank);
-}
-
 int compare_by_rank(const void *a, const void *b) {
 
     Card *card1 = (Card *) a;
@@ -69,13 +58,9 @@ int compare_by_rank(const void *a, const void *b) {
 char* return_card(Card card) {
     char *s = malloc(8);
     const char *suit_names[] = {"♠", "♣", "♦", "♥"};
-    const char *rank_names[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10","J", "Q", "K", "A"};
+    const char *rank_names[] = {"3", "4", "5", "6", "7", "8", "9", "10","J", "Q", "K", "A", "2"};
     sprintf(s, "%s%s", rank_names[card.rank], suit_names[card.suit]);
     return s;
-}
-
-int equal_card(Card *a, Card *b) {
-    return a->rank == b->rank && a->suit == b->suit;
 }
 
 void draw_hand(WINDOW *win, int y, int x, Card *player_deck, int hand_size, int highlight, int *selected_cards) {
@@ -228,18 +213,6 @@ int main() {
                 break;
             case 10: // enter
                 selected_cards[highlight] = !selected_cards[highlight];
-                break;
-            case KEY_UP:
-            case KEY_DOWN:
-
-                if (choice == KEY_DOWN) {
-                    qsort(player_deck, hand_size, sizeof(Card), compare_by_suit);
-                } else {
-                    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
-                }
-
-                draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
-                wrefresh(win);
                 break;
             default:
                 goto end;
