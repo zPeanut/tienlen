@@ -21,7 +21,6 @@
 #define BLUE 97
 #define RED 96
 
-
 void init_deck(Deck *deck) {
     int i = 0;
     for (int j = 0; j < NUM_SUITS; j++) {
@@ -99,102 +98,60 @@ void play_cards(Card* cards) {
 int main() {
     setlocale(LC_ALL, "");
 
-    // init screen
+    // ---- BEGIN VARIABLE DECLARATION ----
+    int hand_size = 13; // max hand size (always 13, even if fewer than 4 players are connected)
+    int choice, flag = 0; // choice = key input, flag = check if animation already played
+    int highlight = 0; // highlight current selected value
+    int total_len = 0; // total length of hand (used for centering)
+    int selected_cards[hand_size]; // array of flags - checks if card at index is highlighted to be played
+
+    Card player_deck[hand_size]; // current hand
+    Card played_hand[hand_size]; // played hand (on turn)
+    // ---- END VARIABLE DECLARATION ----
+
+
+    // ---- BEGIN INIT PHASE ----
     initscr();
     start_color();
     noecho();
     cbreak();
     curs_set(0);
 
-    int y_max, x_max;
-    getmaxyx(stdscr, y_max, x_max);
-
-    // hand window
-    WINDOW *win = newwin(0, x_max - 10, y_max - 7, 5);
-    box(win, 0, 0);
-
-    // played cards
-    WINDOW *cards = newwin(y_max - 7, x_max - 10, 0, 5);
-    box(cards, 0, 0);
-
-    // connected users
-    WINDOW *user_section_box = newwin(y_max - 7, x_max - 10, 0, 5);
-    box(user_section_box, 0, 0);
-
-    // draw vertical line for connected users
-    int line_x = 3 * ((x_max - 10) / 4);
-    for (int y = 1; y < (y_max - 7) - 1; y++) {
-        mvwaddch(user_section_box, y, line_x, ACS_VLINE);
-    }
-
-    char *underline[30];
-    for (int i = 0; i < x_max - 8; i++) {
-        strcat((char *) underline, " ");
-    }
-    mvwprintw(user_section_box, 2, line_x + 2, "Connected Users:");
-    wattron(user_section_box, A_UNDERLINE);
-
-    mvwprintw(user_section_box, 3, line_x + 2, "%s", (char *) underline);
-    wattroff(user_section_box, A_UNDERLINE);
-    mvwprintw(user_section_box, 5, line_x + 2, "User1");
-    mvwprintw(user_section_box, 7, line_x + 2, "User2");
-    mvwprintw(user_section_box, 9, line_x + 2, "User3");
-    mvwprintw(user_section_box, 11, line_x + 2, "User4");
-
-    int win_height, win_width;
-    getmaxyx(win, win_height, win_width);
-
-    // check for colors
     if (!has_colors()) {
-        char* s1 = "-----------------------------------------------";
-        char* s2 = "Error! Your terminal does not support color!";
-        mvprintw(11 + (win_height / 2), (int) (4 + (win_width - strlen(s1)) / 2), "%s", s1);
-        mvprintw(12 + (win_height / 2), (int) (4 + (win_width - strlen(s2)) / 2), "%s", s2);
-        mvprintw(13 + (win_height / 2), (int) (4 + (win_width - strlen(s1)) / 2), "%s", s1);
+        printw("Your terminal doesnt support colors! Session terminated.\n");
+        printw("Press any key to continue...");
         getch();
-        move(0,0);
         endwin();
         return 0;
     }
 
-    // initialize colors for cards
+    // deck initialization
+    Deck *deck = malloc(sizeof (*deck));
+    init_deck(deck);
+    shuffle_deck(deck);
+
+    // color initialization
     init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);     // spades
     init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);       // clubs
     init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);   // diamonds
     init_pair(RED, COLOR_RED, COLOR_BLACK);         // hearts
 
+    int y_max, x_max;
+    getmaxyx(stdscr, y_max, x_max);
+
+    WINDOW *win = newwin(0, x_max - 10, y_max - 7, 5); // hand window
+    WINDOW *cards = newwin(y_max - 7, x_max - 10, 0, 5); // played cards
+    WINDOW *user_section_box = newwin(y_max - 7, x_max - 10, 0, 5); // connected users
+    box(win, 0, 0);
+    box(cards, 0, 0);
+    box(user_section_box, 0, 0);
     keypad(win, true);
 
-    // init deck
-    Deck *deck = malloc(sizeof (*deck));
-    init_deck(deck);
-    shuffle_deck(deck);
+    int win_height, win_width;
+    getmaxyx(win, win_height, win_width);
 
-
-    // max hand size (always 13, even if fewer than 4 players are connected)
-    int hand_size = 13;
-
-    // choice = key input
-    // flag = check if animation already played
-    int choice, flag = 0;
-
-    // highlight current selected value
-    int highlight = 0;
-
-    // total length of hand (used for centering)
-    int total_len = 0;
-
-    // array of flags - checks if card at index is highlighted to be played
-    int selected_cards[hand_size];
-
-    // current hand
-    Card player_deck[hand_size];
-
-    // played hand (on turn)
-    Card played_hand[hand_size];
-
-
-    // give card to player
+    // give cards to player
+    // TODO: this is supposed to be on the server, and every player needs this
     for (int i = 0; i < hand_size; i++) {
         selected_cards[i] = 0;
         player_deck[i] = deck->cards[i];
@@ -203,12 +160,39 @@ int main() {
         total_len += (int) strlen(s);
         if (i < hand_size - 1) total_len += 2;
         free(s);
-
     }
 
-    // sort cards by rank
-    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
+    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort cards by rank
+    // ---- END INIT PHASE ----
 
+
+    // ---- BEGIN UI SECTION ----
+    int line_x = 3 * ((x_max - 10) / 4); // 3/4th of the screen
+    for (int y = 1; y < (y_max - 7) - 1; y++) {
+        mvwaddch(user_section_box, y, line_x, ACS_VLINE); // draw vertical line for connected users
+    }
+
+    // underline for users panel
+    char *underline[30];
+    for (int i = x_max - 15; i > 3 * ((x_max - 10) / 4); i--) {
+        strcat((char *) underline, " ");
+    }
+
+    mvwprintw(user_section_box, 2, line_x + 2, "Connected Users:");
+
+    wattron(user_section_box, A_UNDERLINE);
+    mvwprintw(user_section_box, 3, line_x + 2, "%s", (char *) underline);
+    wattroff(user_section_box, A_UNDERLINE);
+
+    // TODO: add actual users here
+    mvwprintw(user_section_box, 5, line_x + 2, "User1");
+    mvwprintw(user_section_box, 7, line_x + 2, "User2");
+    mvwprintw(user_section_box, 9, line_x + 2, "User3");
+    mvwprintw(user_section_box, 11, line_x + 2, "User4");
+    // ---- END UI SECTION ----
+
+
+    // ---- BEGIN GAME LOOP ----
     while(1) {
         int x;
         int y = win_height / 2;
@@ -239,7 +223,6 @@ int main() {
         }
         // --- END ANIMATION ---
 
-        // --- BEGIN DISPLAY ---
         mvwhline(win, y, 2, ' ', win_width - 10);
 
         total_len = 0;
@@ -256,19 +239,26 @@ int main() {
 
         choice = wgetch(win);
 
+
+
         switch (choice) {
+
             case KEY_LEFT:
                 highlight--;
                 if (highlight == -1) highlight = hand_size - 1;
                 break;
+
             case KEY_RIGHT:
                 highlight++;
                 if (highlight == hand_size) highlight = 0;
                 break;
-            case 10: // enter
+
+            case KEY_UP:
                 selected_cards[highlight] = !selected_cards[highlight];
                 break;
-            case KEY_UP: {
+
+            case 32: // space
+            case 10: { // enter
                     int new_index = 0;
                     for (int i = 0; i < hand_size; i++) {
                         if (selected_cards[i]) {
@@ -280,20 +270,19 @@ int main() {
                         selected_cards[i] = 0;
                     }
                     hand_size = new_index;
-
-
-
+                    if (highlight > new_index) highlight = new_index - 1;
                     memset(selected_cards, 0, sizeof (int) * hand_size);
                 }
                 break;
+
             default:
                 goto end;
         }
-        /// --- END DISPLAY ---
     }
+    // ---- END GAME LOOP ----
 
     end:
-        // free
+        // exit program
         endwin();
         free(deck);
         return 0;
