@@ -239,7 +239,7 @@ int main() {
 
         if (played) {
             int x_pos = 14; // starting x pos after "you played: "
-            mvwhline(cards, 2, 2, ' ', 40);
+            mvwhline(cards, 2, 2, ' ', line_x - 2);
             mvwprintw(cards, 2, 2, "You played: ");
 
             for (int i = 0; i < played_hand_size; i++) {
