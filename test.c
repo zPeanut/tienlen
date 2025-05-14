@@ -74,6 +74,10 @@ char* return_card(Card card) {
     return s;
 }
 
+int equal_card(Card *a, Card *b) {
+    return a->rank == b->rank && a->suit == b->suit;
+}
+
 void draw_hand(WINDOW *win, int y, int x, Card *player_deck, int hand_size, int highlight, int *selected_cards) {
     for (int i = 0; i < hand_size; i++) {
         char *s = return_card(player_deck[i]);
@@ -111,11 +115,6 @@ int main() {
     cbreak();
     curs_set(0);
 
-    init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);
-    init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);
-    init_pair(RED, COLOR_RED, COLOR_BLACK);
-    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
-
     int y_max, x_max;
     getmaxyx(stdscr, y_max, x_max);
 
@@ -138,7 +137,11 @@ int main() {
         return 0;
     }
 
-    wrefresh(win);
+    init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);
+    init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);
+    init_pair(RED, COLOR_RED, COLOR_BLACK);
+    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
+
     keypad(win, true);
 
     Deck *deck = malloc(sizeof (*deck));
@@ -148,16 +151,13 @@ int main() {
     int hand_size = 10;
     int choice, flag = 0;
     int highlight = 0;
+    int total_len = 0;
+
     int selected_cards[hand_size];
+    Card player_deck[hand_size];
 
     for (int i = 0; i < hand_size; i++) {
         selected_cards[i] = 0;
-    }
-
-    Card player_deck[hand_size];
-    int total_len = 0;
-
-    for (int i = 0; i < hand_size; i++) {
         player_deck[i] = deck->cards[i];
         char* s = return_card(deck->cards[i]);
 
@@ -170,7 +170,6 @@ int main() {
     qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
 
     while(1) {
-
         int x;
         int y = win_height / 2;
 
@@ -231,18 +230,21 @@ int main() {
                 selected_cards[highlight] = !selected_cards[highlight];
                 break;
             case KEY_UP:
-                qsort(player_deck, hand_size, sizeof(Card), compare_by_suit);
-                draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
-                wrefresh(win);
-                break;
             case KEY_DOWN:
-                qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
+
+                if (choice == KEY_DOWN) {
+                    qsort(player_deck, hand_size, sizeof(Card), compare_by_suit);
+                } else {
+                    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
+                }
+
                 draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
                 wrefresh(win);
                 break;
             default:
                 goto end;
         }
+        /// --- END DISPLAY ---
     }
 
     end:
