@@ -62,7 +62,6 @@ int main() {
     read(sock, buffer, sizeof(buffer));
     printf("Server: %s", buffer);
 
-
     close(sock);
     return 0;
 }
