@@ -44,17 +44,26 @@ void shuffle_deck(Deck *deck) {
     }
 }
 
-Card deal_card(Deck *deck) {
-    if (deck -> index >= NUM_CARDS) {
-        exit(1);
+int compare_by_suit(const void *a, const void *b) {
+
+    Card *card1 = (Card *) a;
+    Card *card2 = (Card *) b;
+
+    if (card1->suit != card2->suit) {
+        return (int) (card1->suit - card2->suit);
     }
-    return deck -> cards[deck -> index++];
+    return (int) (card1->rank - card2->rank);
 }
 
-void print_card(Card card) {
-    const char *suit_names[] = {PIK, KREUZ, KARO, HERZ };
-    const char *rank_names[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10","J", "Q", "K", "A"};
-    printf("%s%s\n", rank_names[card.rank], suit_names[card.suit]);
+int compare_by_rank(const void *a, const void *b) {
+
+    Card *card1 = (Card *) a;
+    Card *card2 = (Card *) b;
+
+    if (card1->rank != card2->rank) {
+        return (int) (card1->rank - card2->rank);
+    }
+    return (int) (card1->suit - card2->suit);
 }
 
 char* return_card(Card card) {
@@ -63,6 +72,33 @@ char* return_card(Card card) {
     const char *rank_names[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10","J", "Q", "K", "A"};
     sprintf(s, "%s%s", rank_names[card.rank], suit_names[card.suit]);
     return s;
+}
+
+void draw_hand(WINDOW *win, int y, int x, Card *player_deck, int hand_size, int highlight, int *selected_cards) {
+    for (int i = 0; i < hand_size; i++) {
+        char *s = return_card(player_deck[i]);
+
+
+        if(strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
+        if(strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
+        if(strstr(s, KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
+        if(strstr(s, HERZ) != NULL) wattron(win, COLOR_PAIR(RED));
+        if (i == highlight) wattron(win, A_UNDERLINE);
+        if (selected_cards[i]) wattron(win, (A_BLINK | A_REVERSE));
+
+        mvwprintw(win, y, x, "%s", s);
+
+        wattroff(win, A_REVERSE);
+        wattroff(win, A_UNDERLINE);
+        wattroff(win, A_BLINK);
+        wattroff(win, COLOR_PAIR(WHITE));
+        wattroff(win, COLOR_PAIR(BLUE));
+        wattroff(win, COLOR_PAIR(YELLOW));
+        wattroff(win, COLOR_PAIR(RED));
+
+        x += (int) strlen(s) + 2; // add 2 spaces between cards
+        free(s);
+    }
 }
 
 int main() {
@@ -90,14 +126,18 @@ int main() {
     int win_height, win_width;
     getmaxyx(win, win_height, win_width);
 
-    if (has_colors()) {
+    if (!has_colors()) {
         char* s1 = "-----------------------------------------------";
-        char* s2 = "Warning! Your terminal does not support color!";
-        mvprintw(1 + (win_height / 2), (int) 4 + (win_width - strlen(s1)) / 2, "%s", s1);
-        mvprintw(2 + (win_height / 2), (int) 4 + (win_width - strlen(s2)) / 2, "%s", s2);
-        mvprintw(3 + (win_height / 2), (int) 4 + (win_width - strlen(s1)) / 2, "%s", s1);
+        char* s2 = "Error! Your terminal does not support color!";
+        mvprintw(11 + (win_height / 2), (int) (4 + (win_width - strlen(s1)) / 2), "%s", s1);
+        mvprintw(12 + (win_height / 2), (int) (4 + (win_width - strlen(s2)) / 2), "%s", s2);
+        mvprintw(13 + (win_height / 2), (int) (4 + (win_width - strlen(s1)) / 2), "%s", s1);
+        getch();
+        move(0,0);
+        endwin();
+        return 0;
     }
-    refresh();
+
     wrefresh(win);
     keypad(win, true);
 
@@ -114,27 +154,28 @@ int main() {
         selected_cards[i] = 0;
     }
 
+    Card player_deck[hand_size];
+    int total_len = 0;
+
+    for (int i = 0; i < hand_size; i++) {
+        player_deck[i] = deck->cards[i];
+        char* s = return_card(deck->cards[i]);
+
+        total_len += (int) strlen(s);
+        if (i < hand_size - 1) total_len += 2;
+        free(s);
+
+    }
+
+    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
+
     while(1) {
-
-        Card player_deck[hand_size];
-        int total_len = 0;
-
-
-        for (int i = 0; i < hand_size; i++) {
-            player_deck[i] = deck->cards[i];
-            char* s = return_card(deck->cards[i]);
-            total_len += (int) strlen(s);
-
-            if (i < hand_size - 1) total_len += 2;
-            free(s);
-        }
 
         int x;
         int y = win_height / 2;
 
-        // animation
+        // --- BEGIN ANIMATION ---
         if (!flag) {
-
             for (int i = 0; i < hand_size; i++) {
 
                 total_len = 0;
@@ -167,31 +208,13 @@ int main() {
             }
             flag = 1;
         }
+        // --- END ANIMATION ---
 
+        // --- BEGIN DISPLAY ---
         mvwhline(win, y, 2, ' ', win_width - 10);
         x = (win_width - total_len) / 2;
 
-        for (int i = 0; i < hand_size; i++) {
-            char *s = return_card(player_deck[i]);
-
-            if(strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
-            if(strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
-            if(strstr(s, KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
-            if(strstr(s, HERZ) != NULL) wattron(win, COLOR_PAIR(RED));
-            if (i == highlight) wattron(win, A_UNDERLINE);
-            if (selected_cards[i]) wattron(win, (A_BLINK | A_REVERSE));
-            mvwprintw(win, y, x, "%s", s);
-            wattroff(win, A_REVERSE);
-            wattroff(win, A_UNDERLINE);
-            wattroff(win, A_BLINK);
-            wattroff(win, COLOR_PAIR(WHITE));
-            wattroff(win, COLOR_PAIR(BLUE));
-            wattroff(win, COLOR_PAIR(YELLOW));
-            wattroff(win, COLOR_PAIR(RED));
-
-            x += (int) strlen(s) + 2; // add 2 spaces between cards
-            free(s);
-        }
+        draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
 
         choice = wgetch(win);
 
@@ -204,10 +227,21 @@ int main() {
                 highlight++;
                 if (highlight == hand_size) highlight = 0;
                 break;
-            case 10:
+            case 10: // enter
                 selected_cards[highlight] = !selected_cards[highlight];
+                break;
+            case KEY_UP:
+                qsort(player_deck, hand_size, sizeof(Card), compare_by_suit);
+                draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
+                wrefresh(win);
+                break;
+            case KEY_DOWN:
+                qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
+                draw_hand(win, y, x, player_deck, hand_size, highlight, selected_cards);
+                wrefresh(win);
+                break;
             default:
-                ;
+                goto end;
         }
     }
 
