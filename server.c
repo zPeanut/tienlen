@@ -101,7 +101,6 @@ int main() {
 
     for (int j = 0; j < 13; j++) {
         for (int i = 0; i < NUM_PLAYERS; i++) {
-            usleep(150 * 1000);
             printf("f");
             hands[i][j] = deck->cards[deck->index];
             deck->index++;
