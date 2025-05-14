@@ -26,8 +26,8 @@ Valid combinations are:
 6. A double-sequence of 3 or more *(Two-pair straight)* - suit doesn't matter
 
 A sequence may not "overflow", meaning that while `K A 2` is a valid sequence, `A 2 3` isn't.
-Each player, in turn, may either play or pass. To play, they must contribute a card or combination to the pile that matches the type currently being played, but beating it in rank or suit. The highest suited card inside a pair or sequence determines the suit needed, to beat it. Meaning to beat a sequence ending with a `King of Spades`, you at minimum, need a sequence ending with a `King of Diamonds`. Or a higher ranking sequence.
-Playing continues until there is a card or combination no one can beat, its player starting the next round. Once a player has passed, they may not contribute to the pile again and have to wait until the next round. 
+Each player, in turn, may either play or pass. To play, they must contribute a card or combination to the pile that matches the type currently being played, but beating it in rank or suit. The highest suited card inside a pair or sequence determines the suit needed to beat it. So to beat a sequence ending with a `King of Spades`, a sequence ending with a `King of Diamonds` at minimium must be played, or naturally a higher ranking sequence.
+Playing continues until there is a card or combination no one can beat, its player then starting the next round. Once a player has passed, they may not contribute to the pile again and have to wait until the next round. 
 If a player finishes their cards on their turn, the turn must be continued by the next player. If the next player cannot match their card, they may start a new round.
 
 ### House rules
