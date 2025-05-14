@@ -37,6 +37,7 @@ If a player finishes their cards on their turn, the turn must be continued by th
 Usually, when playing a *High card* round, a `2 of Hearts` is unbeatable, as naturally it is the highest card. However, so-called `Bombs` beat them.
 1. A `single 2` can be beaten with a *double-sequence* of 3 or more pairs, **or** with a quartet.
 2. A `pair of 2's` can be beaten with a *double-sequence* of 4 or more pairs, **or** with a quartet.
+3. A `triplet of 2's` can be beaten with a *double-sequence* of 5 or more pairs.
 
 #### Instant win
 Having a quartet of 2's on hand, automatically wins the game, regardless of being played or not.
