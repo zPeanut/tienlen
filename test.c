@@ -133,7 +133,7 @@ int main() {
     init_deck(deck);
     shuffle_deck(deck);
 
-    int hand_size = 10;
+    int hand_size = 13;
     int choice, flag = 0;
     int highlight = 0;
     int total_len = 0;
