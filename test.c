@@ -63,11 +63,10 @@ char* return_card(Card card) {
     return s;
 }
 
-void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int hand_size, int highlight, int *selected_cards) {
+void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, int *selected_cards) {
 
     for (int i = 0; i < loop_limit; i++) {
         char *s = return_card(player_deck[i]);
-
 
         if(strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
         if(strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
@@ -91,6 +90,12 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
     }
 }
 
+void play_cards(Card* cards) {
+
+
+
+}
+
 int main() {
     setlocale(LC_ALL, "");
 
@@ -108,9 +113,13 @@ int main() {
     WINDOW *win = newwin(0, x_max - 10, y_max - 7, 5);
     box(win, 0, 0);
 
+    WINDOW *cards = newwin(y_max - 7, x_max - 10, 0, 5);
+    box(cards, 0, 0);
+
     int win_height, win_width;
     getmaxyx(win, win_height, win_width);
 
+    // check for colors
     if (!has_colors()) {
         char* s1 = "-----------------------------------------------";
         char* s2 = "Error! Your terminal does not support color!";
@@ -123,36 +132,56 @@ int main() {
         return 0;
     }
 
-    init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);
-    init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);
-    init_pair(RED, COLOR_RED, COLOR_BLACK);
-    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
+    // initialize colors for cards
+    init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);     // spades
+    init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);       // clubs
+    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);   // diamonds
+    init_pair(RED, COLOR_RED, COLOR_BLACK);         // hearts
 
     keypad(win, true);
 
+    // init deck
     Deck *deck = malloc(sizeof (*deck));
     init_deck(deck);
     shuffle_deck(deck);
 
+
+    // max hand size (always 13, even if fewer than 4 players are connected)
     int hand_size = 13;
+
+    // choice = key input
+    // flag = check if animation already played
     int choice, flag = 0;
+
+    // highlight current selected value
     int highlight = 0;
+
+    // total length of hand (used for centering)
     int total_len = 0;
 
+    // array of flags - checks if card at index is highlighted to be played
     int selected_cards[hand_size];
+
+    // current hand
     Card player_deck[hand_size];
 
+    // played hand (on turn)
+    Card played_hand[hand_size];
+
+
+    // give card to player
     for (int i = 0; i < hand_size; i++) {
         selected_cards[i] = 0;
         player_deck[i] = deck->cards[i];
-        char* s = return_card(deck->cards[i]);
 
+        char* s = return_card(deck->cards[i]);
         total_len += (int) strlen(s);
         if (i < hand_size - 1) total_len += 2;
         free(s);
 
     }
 
+    // sort cards by rank
     qsort(player_deck, hand_size, sizeof(Card), compare_by_rank);
 
     while(1) {
@@ -174,9 +203,10 @@ int main() {
                 mvwhline(win, y, 2, ' ', win_width - 10);
                 x = (win_width - total_len) / 2;
 
-                draw_hand(win, y, x, i + 1, player_deck, hand_size, highlight, selected_cards);
+                draw_hand(win, y, x, i + 1, player_deck, highlight, selected_cards);
 
                 wrefresh(win);
+                wrefresh(cards);
                 usleep(100 * 1000);
             }
             flag = 1;
@@ -185,9 +215,18 @@ int main() {
 
         // --- BEGIN DISPLAY ---
         mvwhline(win, y, 2, ' ', win_width - 10);
-        x = (win_width - total_len) / 2;
 
-        draw_hand(win, y, x, hand_size, player_deck, hand_size, highlight, selected_cards);
+        total_len = 0;
+        for (int j = 0; j < hand_size; j++) {
+
+            char *s = return_card(player_deck[j]);
+            total_len += (int)strlen(s);
+            free(s);
+            if (j < hand_size) total_len += 2;
+        }
+
+        x = (win_width - total_len) / 2;
+        draw_hand(win, y, x, hand_size, player_deck, highlight, selected_cards);
 
         choice = wgetch(win);
 
@@ -202,6 +241,24 @@ int main() {
                 break;
             case 10: // enter
                 selected_cards[highlight] = !selected_cards[highlight];
+                break;
+            case KEY_UP: {
+                    int new_index = 0;
+                    for (int i = 0; i < hand_size; i++) {
+                        if (selected_cards[i]) {
+                            played_hand[i] = player_deck[i];
+                        } else {
+                            player_deck[new_index] = player_deck[i];
+                            new_index++;
+                        }
+                        selected_cards[i] = 0;
+                    }
+                    hand_size = new_index;
+
+
+
+                    memset(selected_cards, 0, sizeof (int) * hand_size);
+                }
                 break;
             default:
                 goto end;
