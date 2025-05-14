@@ -105,6 +105,7 @@ int main() {
     int total_len = 0; // total length of hand (used for centering)
     int selected_cards[hand_size]; // array of flags - checks if card at index is highlighted to be played
     int played = 0; // keep track if its your turn or not
+    int played_hand_size = 0;
 
     Card player_deck[hand_size]; // current hand
     Card played_hand[hand_size]; // played hand (on turn)
@@ -143,9 +144,11 @@ int main() {
     int y_max, x_max;
     getmaxyx(stdscr, y_max, x_max);
 
-    WINDOW *win = newwin(0, x_max - 10, y_max - 7, 5); // hand window
-    WINDOW *cards = newwin(y_max - 7, x_max - 10, 0, 5); // played cards
-    WINDOW *user_section_box = newwin(y_max - 7, x_max - 10, 0, 5); // connected users
+    int height = y_max - 7;
+    int width = x_max - 10;
+    WINDOW *win = newwin(0, width, height, 5); // hand window
+    WINDOW *cards = newwin(height, width, 0, 5); // played cards
+    WINDOW *user_section_box = newwin(height, width, 0, 5); // connected users
     box(win, 0, 0);
     box(cards, 0, 0);
     box(user_section_box, 0, 0);
@@ -171,22 +174,16 @@ int main() {
 
 
     // ---- BEGIN UI SECTION ----
-    int line_x = 3 * ((x_max - 10) / 4); // 3/4th of the screen
-    for (int y = 1; y < (y_max - 7) - 1; y++) {
+    int line_x = 3 * (width / 4); // 3/4th of the screen
+    for (int y = 1; y < height - 1; y++) {
         mvwaddch(user_section_box, y, line_x, ACS_VLINE); // draw vertical line for connected users
     }
 
-    char *underline[30]; // underline for users panel
-
-    for (int i = x_max - 15; i > line_x; i--) { // range from right (x_max - 15) to left (3/4th of screen)
-        strcat((char *) underline, " ");
+    for (int x = line_x + 2; x < width - 2; x++) {
+        mvwaddch(user_section_box, 3, x, ACS_HLINE); // draw underline
     }
 
     mvwprintw(user_section_box, 2, line_x + 2, "Connected Users:");
-
-    wattron(user_section_box, A_UNDERLINE);
-    mvwprintw(user_section_box, 3, line_x + 2, "%s", (char *) underline);
-    wattroff(user_section_box, A_UNDERLINE);
 
     // TODO: add actual users here
     mvwprintw(user_section_box, 5, line_x + 2, "User1");
@@ -241,8 +238,15 @@ int main() {
         draw_hand(win, y, x, hand_size, player_deck, highlight, selected_cards);
 
         if (played) {
-            mvwprintw(cards, 2, 2, "You played: %s%s%s%s", return_card(played_hand[0]), return_card(played_hand[1]), return_card(played_hand[2]), return_card(played_hand[3]));
+            char msg[208] = { 0 };
+            for (int i = 0; i < played_hand_size; i++) {
+                strcat(msg, return_card(played_hand[i]));
+            }
+            mvwhline(cards, 2, 2, ' ', strlen(msg) + 17);
+            mvwprintw(cards, 2, 2, "You played: %s", msg);
             wrefresh(cards);
+            played_hand_size = 0;
+            memset(played_hand, 0, hand_size * sizeof(int));
             played = 0;
         }
 
@@ -266,10 +270,9 @@ int main() {
 
             case 32: { // enter
                     int new_index = 0;
-                    int count = 0;
                     for (int i = 0; i < hand_size; i++) {
                         if (selected_cards[i]) {
-                            played_hand[count++] = player_deck[i];
+                            played_hand[played_hand_size++] = player_deck[i];
                         } else {
                             player_deck[new_index++] = player_deck[i];
                         }
