@@ -104,9 +104,13 @@ int main() {
     int highlight = 0; // highlight current selected value
     int total_len = 0; // total length of hand (used for centering)
     int selected_cards[hand_size]; // array of flags - checks if card at index is highlighted to be played
+    int played = 0; // keep track if its your turn or not
 
     Card player_deck[hand_size]; // current hand
     Card played_hand[hand_size]; // played hand (on turn)
+    // need to init array to NULL to check if cards are inside it
+    memset(played_hand, 0, hand_size * sizeof(int));
+
     // ---- END VARIABLE DECLARATION ----
 
 
@@ -227,20 +231,22 @@ int main() {
 
         total_len = 0;
         for (int j = 0; j < hand_size; j++) {
-
             char *s = return_card(player_deck[j]);
             total_len += (int)strlen(s);
             free(s);
-            if (j < hand_size) total_len += 2;
+            if (j < hand_size - 1) total_len += 2;
         }
 
         x = (win_width - total_len) / 2;
         draw_hand(win, y, x, hand_size, player_deck, highlight, selected_cards);
 
+        if (played) {
+            mvwprintw(cards, 2, 2, "You played: %s%s%s%s", return_card(played_hand[0]), return_card(played_hand[1]), return_card(played_hand[2]), return_card(played_hand[3]));
+            wrefresh(cards);
+            played = 0;
+        }
+
         choice = wgetch(win);
-
-
-
         switch (choice) {
 
             case KEY_LEFT:
@@ -253,25 +259,26 @@ int main() {
                 if (highlight == hand_size) highlight = 0;
                 break;
 
+            case 10:
             case KEY_UP:
                 selected_cards[highlight] = !selected_cards[highlight];
                 break;
 
-            case 32: // space
-            case 10: { // enter
+            case 32: { // enter
                     int new_index = 0;
+                    int count = 0;
                     for (int i = 0; i < hand_size; i++) {
                         if (selected_cards[i]) {
-                            played_hand[i] = player_deck[i];
+                            played_hand[count++] = player_deck[i];
                         } else {
-                            player_deck[new_index] = player_deck[i];
-                            new_index++;
+                            player_deck[new_index++] = player_deck[i];
                         }
                         selected_cards[i] = 0;
                     }
                     hand_size = new_index;
                     if (highlight > new_index) highlight = new_index - 1;
-                    memset(selected_cards, 0, sizeof (int) * hand_size);
+                    memset(selected_cards, 0, hand_size * sizeof(int));
+                    played = 1;
                 }
                 break;
 
