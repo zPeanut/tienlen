@@ -109,12 +109,37 @@ int main() {
     int y_max, x_max;
     getmaxyx(stdscr, y_max, x_max);
 
-    // window
+    // hand window
     WINDOW *win = newwin(0, x_max - 10, y_max - 7, 5);
     box(win, 0, 0);
 
+    // played cards
     WINDOW *cards = newwin(y_max - 7, x_max - 10, 0, 5);
     box(cards, 0, 0);
+
+    // connected users
+    WINDOW *user_section_box = newwin(y_max - 7, x_max - 10, 0, 5);
+    box(user_section_box, 0, 0);
+
+    // draw vertical line for connected users
+    int line_x = 3 * ((x_max - 10) / 4);
+    for (int y = 1; y < (y_max - 7) - 1; y++) {
+        mvwaddch(user_section_box, y, line_x, ACS_VLINE);
+    }
+
+    char *underline[30];
+    for (int i = 0; i < x_max - 8; i++) {
+        strcat((char *) underline, " ");
+    }
+    mvwprintw(user_section_box, 2, line_x + 2, "Connected Users:");
+    wattron(user_section_box, A_UNDERLINE);
+
+    mvwprintw(user_section_box, 3, line_x + 2, "%s", (char *) underline);
+    wattroff(user_section_box, A_UNDERLINE);
+    mvwprintw(user_section_box, 5, line_x + 2, "User1");
+    mvwprintw(user_section_box, 7, line_x + 2, "User2");
+    mvwprintw(user_section_box, 9, line_x + 2, "User3");
+    mvwprintw(user_section_box, 11, line_x + 2, "User4");
 
     int win_height, win_width;
     getmaxyx(win, win_height, win_width);
@@ -207,6 +232,7 @@ int main() {
 
                 wrefresh(win);
                 wrefresh(cards);
+                wrefresh(user_section_box);
                 usleep(100 * 1000);
             }
             flag = 1;
