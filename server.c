@@ -69,67 +69,9 @@ void send_message(const char *message, int except_fd) {
     pthread_mutex_unlock(&player_lock);
 }
 
-void* hb_thread() {
-    while(running) {
-        sleep(5);
-        pthread_mutex_lock(&player_lock);
-
-        fd_set readfds;
-        struct timeval timeout;
-        char buffer[16];
-        int max_fd = -1;
-
-        // send ping to all players
-        for (int i = 0; i < player_count; i++) {
-            send(client_sockets[i], "tien", 4, 0);
-        }
-        FD_ZERO(&readfds);
-        for (int i = 0; i < player_count; i++) {
-            FD_SET(client_sockets[i], &readfds);
-            if (client_sockets[i] > max_fd) max_fd = client_sockets[i];
-        }
-
-        timeout.tv_sec = 5; // 5 sec intervals
-        timeout.tv_usec = 0;
-
-        for (int i = 0; i < player_count; i++) {
-            int disconnected = 0;
-            if (FD_ISSET(client_sockets[i], &readfds)) {
-                int len = recv(client_sockets[i], buffer, sizeof(buffer) - 1, 0);
-
-                if (len <= 0) {
-                    disconnected = 1; // no message was received
-                } else {
-                    buffer[len] = '\0';
-                    if (strcmp(buffer, "len") != 0) {
-                        disconnected = 1; // the wrong message was received
-                    }
-                }
-
-            } else {
-                disconnected = 1; // no reply = timeout
-            }
-
-            if (disconnected) {
-                close(client_sockets[i]);
-                char* temp = players[i];
-                for (int j = i; j < player_count - 1; j++) {
-                    client_sockets[j] = client_sockets[j + 1];
-                    strcpy(players[j], players[j + 1]);
-                }
-                player_count--;
-                i--;
-                printf("Player %s disconnected. (%d/%d)\n", temp, player_count, NUM_PLAYERS);
-            }
-        }
-        pthread_mutex_unlock(&player_lock);
-    }
-    return NULL;
-}
-
 
 int main() {
-    int server_fd, new_socket;
+    int server_fd;
     struct sockaddr_in address;
     socklen_t addrlen = sizeof(address);
 
@@ -143,15 +85,9 @@ int main() {
     listen(server_fd, NUM_PLAYERS);
     printf("Warten auf andere Spieler...\n");
 
-    pthread_t heartbeat_tb;
-    pthread_create(&heartbeat_tb, NULL, hb_thread, NULL);
+    while (player_count < 4) {
 
-
-    while (1) {
-
-        if (player_count >= NUM_PLAYERS) break;
-
-        new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
+        int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen);
         if (new_socket < 0) {
             perror("accept");
             continue;
@@ -161,23 +97,12 @@ int main() {
         ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
         name[b_recv] = '\0';
 
-        pthread_mutex_lock(&player_lock);
-        if (player_count < NUM_PLAYERS) {
-            client_sockets[player_count] = new_socket;
-            strcpy(players[player_count], name);
-            player_count++;
-            printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
+        client_sockets[player_count] = new_socket;
+        strcpy(players[player_count], name);
 
-        } else {
-            printf("Server full. Rejecting player %s.\n", name);
-            close(new_socket);
-        }
-        pthread_mutex_unlock(&player_lock);
+        player_count++;
+        printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
     }
-
-    running = 0;
-    pthread_join(heartbeat_tb, NULL);
-    printf("All players connected. Starting game!\n");
 
     // gameplay logic
     Deck *deck = malloc(sizeof(*deck));

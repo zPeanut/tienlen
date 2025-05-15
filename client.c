@@ -193,8 +193,6 @@ int main() {
 
     printf("Connected to %s:%s\n", ip, port);
 
-
-
     char name[30];
     do {
         printf("Enter your name?\n");
@@ -283,6 +281,7 @@ int main() {
 
 
     int connected = 0;
+
     // ---- BEGIN GAME LOOP ----
     while (1) {
 
@@ -293,170 +292,151 @@ int main() {
         int num_frames = sizeof(dots) / sizeof(dots[0]);
         int k = 0;
 
-        while(!connected) {
-            char full_msg[50];
-            sprintf(full_msg, "%s%s", waiting_msg, dots[k % num_frames]);
+        char full_msg[50];
+        sprintf(full_msg, "%s%s", waiting_msg, dots[k % num_frames]);
 
-            mvwhline(win_chat, temp_height / 2, 1, ' ', (int) (temp_width - strlen(full_msg)) / 4 + 40);
-            mvwprintw(win_chat, temp_height / 2, (int) (temp_width - strlen(full_msg + 1)) / 4 + 5, "%s", full_msg);
+        mvwhline(win_chat, temp_height / 2, 1, ' ', (int) (temp_width - strlen(full_msg)) / 4 + 40);
+        mvwprintw(win_chat, temp_height / 2, (int) (temp_width - strlen(full_msg + 1)) / 4 + 5, "%s", full_msg);
 
-            // TODO: add actual users here
-            for (int i = 0; i < 4; i++) {
-                if (players[i] != 0) {
-                    mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
-                }
+        // TODO: add actual users here
+        for (int i = 0; i < 4; i++) {
+            if (players[i] != 0) {
+                mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
             }
-
-            wrefresh(win_hand);
-            wrefresh(win_chat);
-            wrefresh(win_user);
-
-            usleep(400 * 1500);
-            k++;
-
-            // WAITING ROOM
-            /*char buffer[16];
-            ssize_t len = recv(sock, buffer, sizeof(buffer) - 1, 0);
-            if (len > 0) {
-                buffer[len] = '\0';
-                if (strcmp(buffer, "tien") == 0) {
-                    send(sock, "len", 4, 0);
-                }
-            }*/
         }
 
-        if (connected) {
-            // --- BEGIN UI SECTION ---
-            int x;
-            int y = win_height / 2;
-
-            // -- animation begin --
-            if (!flag) {
-                for (int i = 0; i < hand_size; i++) {
-
-                    total_len = 0;
-                    for (int j = 0; j <= i; j++) {
-                        char *s = return_card(player_deck[j]);
-                        total_len += (int) strlen(s);
-                        free(s);
-                        if (j < i) total_len += 2;
-                    }
-
-                    mvwhline(win_hand, y, 2, ' ', win_width - 10);
-                    x = (win_width - total_len) / 2;
-
-                    draw_hand(win_hand, y, x, i + 1, player_deck, highlight, selected_cards);
-
-                    wrefresh(win_hand);
-                    wrefresh(win_chat);
-                    wrefresh(win_user);
-                    usleep(100 * 1000);
-                }
-                flag = 1;
-            }
-            // -- animation end --
-
-            mvwhline(win_hand, y, 2, ' ', win_width - 10);
-
-            total_len = 0;
-            for (int j = 0; j < hand_size; j++) {
-                char *s = return_card(player_deck[j]);
-                total_len += (int) strlen(s);
-                free(s);
-                if (j < hand_size - 1) total_len += 2;
-            }
-
-            x = (win_width - total_len) / 2;
-            draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
-            // --- END UI SECTION ---
 
 
-            // --- BEGIN GAME LOGIC ---
-            if (played && turn) {
-                int x_pos = 14; // starting x pos after "you played: "
-                mvwhline(win_chat, 4, 2, ' ', line_x - 2);
+        // --- BEGIN UI SECTION ---
+        int x;
+        int y = win_height / 2;
 
-                if (any_selected) {
-                    mvwprintw(win_chat, 4, 2, "You played: ");
-                    for (int i = 0; i < played_hand_size; i++) {
-                        char *msg = return_card(played_hand[i]);
+        // -- animation begin --
+        if (!flag) {
+            for (int i = 0; i < hand_size; i++) {
 
-                        if (strstr(msg, PIK)) wattron(win_chat, COLOR_PAIR(WHITE));
-                        else if (strstr(msg, KREUZ)) wattron(win_chat, COLOR_PAIR(BLUE));
-                        else if (strstr(msg, KARO)) wattron(win_chat, COLOR_PAIR(YELLOW));
-                        else if (strstr(msg, HERZ)) wattron(win_chat, COLOR_PAIR(RED));
-
-                        mvwprintw(win_chat, 4, x_pos, "%s", msg);
-                        x_pos += (int) strlen(msg);
-
-                        wattroff(win_chat, COLOR_PAIR(WHITE));
-                        wattroff(win_chat, COLOR_PAIR(BLUE));
-                        wattroff(win_chat, COLOR_PAIR(YELLOW));
-                        wattroff(win_chat, COLOR_PAIR(RED));
-
-                        free(msg);
-                    }
-
-                } else {
-                    mvwprintw(win_chat, 4, 2, "You passed.");
-                    turn = 0;
+                total_len = 0;
+                for (int j = 0; j <= i; j++) {
+                    char *s = return_card(player_deck[j]);
+                    total_len += (int) strlen(s);
+                    free(s);
+                    if (j < i) total_len += 2;
                 }
 
-                memset(played_hand, 0, hand_size * sizeof(int));
-                played_hand_size = 0;
-                played = 0;
-                any_selected = 0;
+                mvwhline(win_hand, y, 2, ' ', win_width - 10);
+                x = (win_width - total_len) / 2;
+
+                draw_hand(win_hand, y, x, i + 1, player_deck, highlight, selected_cards);
+
+                wrefresh(win_hand);
                 wrefresh(win_chat);
+                wrefresh(win_user);
+                usleep(100 * 1000);
             }
-            // --- END GAME LOGIC ---
-
-
-            // --- BEGIN CONTROLS ---
-            choice = wgetch(win_hand);
-            switch (choice) {
-
-                case KEY_LEFT:
-                    highlight--;
-                    if (highlight == -1) highlight = hand_size - 1;
-                    break;
-
-                case KEY_RIGHT:
-                    highlight++;
-                    if (highlight == hand_size) highlight = 0;
-                    break;
-
-                case 10: // enter
-                case KEY_UP:
-                    selected_cards[highlight] = !selected_cards[highlight];
-                    break;
-
-                case 32: { // space
-                    if (turn) {
-                        int new_index = 0;
-                        any_selected = 0;
-
-                        for (int i = 0; i < hand_size; i++) {
-                            if (selected_cards[i]) {
-                                any_selected = 1;
-                                played_hand[played_hand_size++] = player_deck[i];
-                            } else {
-                                player_deck[new_index++] = player_deck[i];
-                            }
-                            selected_cards[i] = 0;
-                        }
-                        played = 1;
-                        hand_size = new_index;
-                        if (highlight > new_index) highlight = new_index - 1;
-                        memset(selected_cards, 0, hand_size * sizeof(int));
-                    }
-                }
-                    break;
-
-                default:
-                    goto end;
-            }
-            // --- END CONTROLS ---
+            flag = 1;
         }
+        // -- animation end --
+
+        mvwhline(win_hand, y, 2, ' ', win_width - 10);
+
+        total_len = 0;
+        for (int j = 0; j < hand_size; j++) {
+            char *s = return_card(player_deck[j]);
+            total_len += (int) strlen(s);
+            free(s);
+            if (j < hand_size - 1) total_len += 2;
+        }
+
+        x = (win_width - total_len) / 2;
+        draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
+        // --- END UI SECTION ---
+
+
+        // --- BEGIN GAME LOGIC ---
+        if (played && turn) {
+            int x_pos = 14; // starting x pos after "you played: "
+            mvwhline(win_chat, 4, 2, ' ', line_x - 2);
+
+            if (any_selected) {
+                mvwprintw(win_chat, 4, 2, "You played: ");
+                for (int i = 0; i < played_hand_size; i++) {
+                    char *msg = return_card(played_hand[i]);
+
+                    if (strstr(msg, PIK)) wattron(win_chat, COLOR_PAIR(WHITE));
+                    else if (strstr(msg, KREUZ)) wattron(win_chat, COLOR_PAIR(BLUE));
+                    else if (strstr(msg, KARO)) wattron(win_chat, COLOR_PAIR(YELLOW));
+                    else if (strstr(msg, HERZ)) wattron(win_chat, COLOR_PAIR(RED));
+
+                    mvwprintw(win_chat, 4, x_pos, "%s", msg);
+                    x_pos += (int) strlen(msg);
+
+                    wattroff(win_chat, COLOR_PAIR(WHITE));
+                    wattroff(win_chat, COLOR_PAIR(BLUE));
+                    wattroff(win_chat, COLOR_PAIR(YELLOW));
+                    wattroff(win_chat, COLOR_PAIR(RED));
+
+                    free(msg);
+                }
+
+            } else {
+                mvwprintw(win_chat, 4, 2, "You passed.");
+                turn = 0;
+            }
+
+            memset(played_hand, 0, hand_size * sizeof(int));
+            played_hand_size = 0;
+            played = 0;
+            any_selected = 0;
+            wrefresh(win_chat);
+        }
+        // --- END GAME LOGIC ---
+
+
+        // --- BEGIN CONTROLS ---
+        choice = wgetch(win_hand);
+        switch (choice) {
+
+            case KEY_LEFT:
+                highlight--;
+                if (highlight == -1) highlight = hand_size - 1;
+                break;
+
+            case KEY_RIGHT:
+                highlight++;
+                if (highlight == hand_size) highlight = 0;
+                break;
+
+            case 10: // enter
+            case KEY_UP:
+                selected_cards[highlight] = !selected_cards[highlight];
+                break;
+
+            case 32: { // space
+                if (turn) {
+                    int new_index = 0;
+                    any_selected = 0;
+
+                    for (int i = 0; i < hand_size; i++) {
+                        if (selected_cards[i]) {
+                            any_selected = 1;
+                            played_hand[played_hand_size++] = player_deck[i];
+                        } else {
+                            player_deck[new_index++] = player_deck[i];
+                        }
+                        selected_cards[i] = 0;
+                    }
+                    played = 1;
+                    hand_size = new_index;
+                    if (highlight > new_index) highlight = new_index - 1;
+                    memset(selected_cards, 0, hand_size * sizeof(int));
+                }
+            }
+                break;
+
+            default:
+                goto end;
+        }
+        // --- END CONTROLS ---
     }
     // ---- END GAME LOOP ----
 
