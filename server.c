@@ -103,13 +103,14 @@ void* hb_thread() {
 
             if (disconnected) {
                 close(client_sockets[i]);
+                char* temp = players[i];
                 for (int j = i; j < player_count - 1; j++) {
                     client_sockets[j] = client_sockets[j + 1];
                     strcpy(players[j], players[j + 1]);
                 }
                 player_count--;
                 i--;
-                printf("Player %s disconnected. (%d/%d)\n", players[i], player_count, NUM_PLAYERS);
+                printf("Player %s disconnected. (%d/%d)\n", temp, player_count, NUM_PLAYERS);
             }
         }
         pthread_mutex_unlock(&player_lock);
