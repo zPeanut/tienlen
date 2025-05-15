@@ -148,6 +148,7 @@ int main() {
     int played_hand_size = 0;
     int any_selected = 0; // check if any win_chat are even played
     int turn = 1; // turn check flag
+    char players[4][30] = {0};
 
     Card player_deck[hand_size]; // current win_hand
     Card played_hand[hand_size]; // played win_hand (on turn)
@@ -191,6 +192,9 @@ int main() {
     }
 
     printf("Connected to %s:%s\n", ip, port);
+
+
+
     char name[30];
     do {
         printf("Enter your name?\n");
@@ -201,6 +205,12 @@ int main() {
 
     send(sock, name, strlen(name), 0);
 
+    for (int i = 0; i < 4; i++) {
+        if (players[i] != 0) {
+            strcpy(players[i], name);
+            break;
+        }
+    }
 
     // ---- BEGIN UI-INIT PHASE ----
     initscr();
@@ -279,7 +289,7 @@ int main() {
         int temp_height, temp_width;
         getmaxyx(win_chat, temp_height, temp_width);
         char *waiting_msg = "Waiting for players";
-        char *dots[] = {".", "..", "..."};
+        char *dots[] = {"", ".", "..", "..."};
         int num_frames = sizeof(dots) / sizeof(dots[0]);
         int k = 0;
 
@@ -288,11 +298,13 @@ int main() {
             sprintf(full_msg, "%s%s", waiting_msg, dots[k % num_frames]);
 
             mvwhline(win_chat, temp_height / 2, 1, ' ', (int) (temp_width - strlen(full_msg)) / 4 + 40);
-            mvwprintw(win_chat, temp_height / 2, (int) (temp_width - strlen(full_msg)) / 4 + 5, "%s", full_msg);
+            mvwprintw(win_chat, temp_height / 2, (int) (temp_width - strlen(full_msg + 1)) / 4 + 5, "%s", full_msg);
 
             // TODO: add actual users here
             for (int i = 0; i < 4; i++) {
-                mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", name);
+                if (players[i] != 0) {
+                    mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+                }
             }
 
             wrefresh(win_hand);
