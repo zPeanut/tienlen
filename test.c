@@ -45,7 +45,6 @@ void shuffle_deck(Deck *deck) {
 }
 
 int compare_by_rank(const void *a, const void *b) {
-
     Card *card1 = (Card *) a;
     Card *card2 = (Card *) b;
 
@@ -88,12 +87,6 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
         x += (int) strlen(s) + 2; // add 2 spaces between cards
         free(s);
     }
-}
-
-void play_cards(Card* cards) {
-
-
-
 }
 
 int main() {
