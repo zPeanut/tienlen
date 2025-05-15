@@ -22,7 +22,6 @@ int running = 1;
 int player_count = 0;
 int client_sockets[NUM_PLAYERS] = { 0 };
 
-
 pthread_mutex_t player_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void init_deck(Deck *deck) {
@@ -58,6 +57,16 @@ void print_card(Card card) {
     const char *suit_names[] = {"♠", "♣", "♦", "♥"};
     const char *rank_names[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10","J", "Q", "K", "A"};
     printf("[%s%s]\n", rank_names[card.rank], suit_names[card.suit]);
+}
+
+void send_message(const char *message, int except_fd) {
+    pthread_mutex_lock(&player_lock);
+    for (int i = 0; i < player_count; i++) {
+        if (client_sockets[i] != except_fd) {
+            send(client_sockets[i], message, strlen(message), 0);
+        }
+    }
+    pthread_mutex_unlock(&player_lock);
 }
 
 void* hb_thread() {
@@ -158,6 +167,7 @@ int main() {
             strcpy(players[player_count], name);
             player_count++;
             printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
+
         } else {
             printf("Server full. Rejecting player %s.\n", name);
             close(new_socket);
