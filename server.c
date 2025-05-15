@@ -12,6 +12,7 @@
 #include "cards.c"
 #include <time.h>
 #include <pthread.h>
+#include <signal.h>
 
 #define PORT 25565
 #define NUM_PLAYERS 4
@@ -21,8 +22,15 @@ Card hands[NUM_PLAYERS][13];
 int running = 1;
 int player_count = 0;
 int client_sockets[NUM_PLAYERS] = { 0 };
+int server_fd;
 
 pthread_mutex_t player_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void handle_ctrlc(int signal) {
+    printf("Closing server...\n");
+    close(server_fd);
+    exit(0);
+}
 
 void init_deck(Deck *deck) {
     int i = 0;
@@ -71,10 +79,10 @@ void send_message(const char *message, int except_fd) {
 
 
 int main() {
-    int server_fd;
     struct sockaddr_in address;
     socklen_t addrlen = sizeof(address);
 
+    signal(SIGINT, handle_ctrlc);
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     printf("Socket erstellt.\n");
     address.sin_family = AF_INET;
