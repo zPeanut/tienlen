@@ -68,13 +68,11 @@ void print_card(Card card) {
 }
 
 void send_message(const char *message, int except_fd) {
-    pthread_mutex_lock(&player_lock);
     for (int i = 0; i < player_count; i++) {
         if (client_sockets[i] != except_fd) {
             send(client_sockets[i], message, strlen(message), 0);
         }
     }
-    pthread_mutex_unlock(&player_lock);
 }
 
 
@@ -111,9 +109,6 @@ int main() {
             }
         }
 
-        // check for new connections
-        int active = select(max_fd + 1, &readfds, NULL, NULL, &tv);
-
         if (FD_ISSET(server_fd, &readfds)) {
             int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen);
 
@@ -126,6 +121,19 @@ int main() {
 
             player_count++;
             printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
+
+            // comma seperated names list
+            char player_list[256];
+            for (int i = 0; i < player_count; i++) {
+                strcat(player_list, players[i]);
+                if (i < player_count - 1) strcat(player_list, ",");
+            }
+
+            // send that to all clients
+            for (int i = 0; i < player_count; i++) {
+                send(client_sockets[i], player_list, strlen(player_list), 0);
+            }
+
         }
 
         // check for disconnects
@@ -136,9 +144,23 @@ int main() {
                 if (b_recv <= 0) {
                     player_count--;
                     printf("Player %s disconnected. (%d/%d)\n", players[i], player_count, NUM_PLAYERS);
-
                     close(client_sockets[i]);
                     client_sockets[i] = -1;
+
+                    // make updated player lists (after disconnects)
+                    char player_list[256] = "";
+                    for (int j = 0; j < NUM_PLAYERS; j++) {
+                        if (client_sockets[j] != -1) { // Only include connected players
+                            strcat(player_list, players[j]);
+                            if (j < NUM_PLAYERS - 1) strcat(player_list, ",");
+                        }
+                    }
+
+                    for (int j = 0; j < NUM_PLAYERS; j++) {
+                        if (client_sockets[j] != -1) {
+                            send(client_sockets[j], player_list, strlen(player_list), 0);
+                        }
+                    }
                 }
             }
         }
