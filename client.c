@@ -203,12 +203,24 @@ int main() {
 
     send(sock, name, strlen(name), 0);
 
-    for (int i = 0; i < 4; i++) {
-        if (players[i] != 0) {
-            strcpy(players[i], name);
-            break;
+    // build initial userlist from server
+    char recv_buffer[256];
+    ssize_t received = recv(sock, recv_buffer, sizeof(recv_buffer) - 1, 0);
+    if (received > 0) {
+        recv_buffer[received] = '\0';
+        // parse player names with comma
+        memset(players, 0, sizeof(players)); // clear old array
+        char *token = strtok(recv_buffer, ",");
+        int i = 0;
+        while (token != NULL && i < 4) {
+            strncpy(players[i], token, sizeof(players[i]) - 1);
+            i++;
+            token = strtok(NULL, ",");
         }
     }
+
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
 
     // ---- BEGIN UI-INIT PHASE ----
     initscr();
@@ -248,6 +260,7 @@ int main() {
     box(win_chat, 0, 0);
     box(win_user, 0, 0);
     keypad(win_hand, true);
+    nodelay(win_hand, true); // make input non-blocking
 
     int win_height, win_width;
     getmaxyx(win_hand, win_height, win_width);
@@ -266,37 +279,54 @@ int main() {
 
     qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_chat by rank
 
-    int line_x = 3 * (width / 4); // 3/4th of the screen
-    for (int y = 1; y < height - 1; y++) {
-        mvwaddch(win_user, y, line_x, ACS_VLINE); // draw vertical line for connected users
-    }
-
-    for (int x = line_x + 2; x < width - 2; x++) {
-        mvwaddch(win_user, 3, x, ACS_HLINE); // draw underline
-    }
-
-    mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
-
     // ---- END UI-INIT PHASE ----
 
-
-    int connected = 0;
 
     // ---- BEGIN GAME LOOP ----
     while (1) {
 
-        int temp_height, temp_width;
-        getmaxyx(win_chat, temp_height, temp_width);
-        char *waiting_msg = "Waiting for players";
-        char *dots[] = {"", ".", "..", "..."};
-        int num_frames = sizeof(dots) / sizeof(dots[0]);
-        int k = 0;
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(sock, &readfds); // monitor socket
 
-        char full_msg[50];
-        sprintf(full_msg, "%s%s", waiting_msg, dots[k % num_frames]);
+        struct timeval tv = {0}; // non block check
+        tv.tv_usec = 100000; // 100ms timeout
 
-        mvwhline(win_chat, temp_height / 2, 1, ' ', (int) (temp_width - strlen(full_msg)) / 4 + 40);
-        mvwprintw(win_chat, temp_height / 2, (int) (temp_width - strlen(full_msg + 1)) / 4 + 5, "%s", full_msg);
+        int line_x = 3 * (width / 4); // 3/4th of the screen
+        for (int y = 1; y < height - 1; y++) {
+            mvwaddch(win_user, y, line_x, ACS_VLINE); // draw vertical line for connected users
+        }
+
+        for (int x = line_x + 2; x < width - 2; x++) {
+            mvwaddch(win_user, 3, x, ACS_HLINE); // draw underline
+        }
+
+        mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
+
+        // --- BEGIN RECEIVING DATA ---
+        if (FD_ISSET(sock, &readfds)) {
+            char buffer[256];
+            ssize_t received = recv(sock, buffer, sizeof(buffer) - 1, 0);
+            if (received > 0) {
+                buffer[received] = '\0';
+
+                if (strstr(buffer, ",")) {
+                    memset(players, 0, sizeof(players));
+                    char *token = strtok(buffer, ",");
+                    int i = 0;
+                    while (token != NULL && i < 4) {
+                        strncpy(players[i], token, sizeof(players[i]) - 1);
+                        i++;
+                        token = strtok(NULL, ",");
+                    }
+                } else if (strstr(buffer, "DISCONNECT")) {
+
+                }
+            } else if (received == 0) {
+                // Server disconnected
+                break;
+            }
+        }
 
         // TODO: add actual users here
         for (int i = 0; i < 4; i++) {
@@ -305,6 +335,9 @@ int main() {
             }
         }
 
+        wrefresh(win_hand);
+        wrefresh(win_chat);
+        wrefresh(win_user);
 
 
         // --- BEGIN UI SECTION ---
@@ -394,47 +427,49 @@ int main() {
 
         // --- BEGIN CONTROLS ---
         choice = wgetch(win_hand);
-        switch (choice) {
+        if (choice != ERR) {
+            switch (choice) {
 
-            case KEY_LEFT:
-                highlight--;
-                if (highlight == -1) highlight = hand_size - 1;
-                break;
+                case KEY_LEFT:
+                    highlight--;
+                    if (highlight == -1) highlight = hand_size - 1;
+                    break;
 
-            case KEY_RIGHT:
-                highlight++;
-                if (highlight == hand_size) highlight = 0;
-                break;
+                case KEY_RIGHT:
+                    highlight++;
+                    if (highlight == hand_size) highlight = 0;
+                    break;
 
-            case 10: // enter
-            case KEY_UP:
-                selected_cards[highlight] = !selected_cards[highlight];
-                break;
+                case 10: // enter
+                case KEY_UP:
+                    selected_cards[highlight] = !selected_cards[highlight];
+                    break;
 
-            case 32: { // space
-                if (turn) {
-                    int new_index = 0;
-                    any_selected = 0;
+                case 32: { // space
+                    if (turn) {
+                        int new_index = 0;
+                        any_selected = 0;
 
-                    for (int i = 0; i < hand_size; i++) {
-                        if (selected_cards[i]) {
-                            any_selected = 1;
-                            played_hand[played_hand_size++] = player_deck[i];
-                        } else {
-                            player_deck[new_index++] = player_deck[i];
+                        for (int i = 0; i < hand_size; i++) {
+                            if (selected_cards[i]) {
+                                any_selected = 1;
+                                played_hand[played_hand_size++] = player_deck[i];
+                            } else {
+                                player_deck[new_index++] = player_deck[i];
+                            }
+                            selected_cards[i] = 0;
                         }
-                        selected_cards[i] = 0;
+                        played = 1;
+                        hand_size = new_index;
+                        if (highlight > new_index) highlight = new_index - 1;
+                        memset(selected_cards, 0, hand_size * sizeof(int));
+                        }
                     }
-                    played = 1;
-                    hand_size = new_index;
-                    if (highlight > new_index) highlight = new_index - 1;
-                    memset(selected_cards, 0, hand_size * sizeof(int));
-                }
-            }
-                break;
+                    break;
 
-            default:
-                goto end;
+                default:
+                    goto end;
+            }
         }
         // --- END CONTROLS ---
     }
