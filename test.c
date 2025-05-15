@@ -21,7 +21,6 @@
 #define BLUE 97
 #define RED 96
 
-
 void init_deck(Deck *deck) {
     int i = 0;
     for (int j = 0; j < NUM_SUITS; j++) {
