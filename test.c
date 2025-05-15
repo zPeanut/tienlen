@@ -21,6 +21,7 @@
 #define BLUE 97
 #define RED 96
 
+
 void init_deck(Deck *deck) {
     int i = 0;
     for (int j = 0; j < NUM_SUITS; j++) {
@@ -106,6 +107,8 @@ int main() {
     int selected_cards[hand_size]; // array of flags - checks if card at index is highlighted to be played
     int played = 0; // keep track if its your turn or not
     int played_hand_size = 0;
+    int any_selected = 0; // check if any cards are even played
+    int turn = 1; // turn check flag
 
     Card player_deck[hand_size]; // current hand
     Card played_hand[hand_size]; // played hand (on turn)
@@ -224,6 +227,7 @@ int main() {
         }
         // --- END ANIMATION ---
 
+
         mvwhline(win, y, 2, ' ', win_width - 10);
 
         total_len = 0;
@@ -237,34 +241,42 @@ int main() {
         x = (win_width - total_len) / 2;
         draw_hand(win, y, x, hand_size, player_deck, highlight, selected_cards);
 
-        if (played) {
+
+        if (played && turn) {
             int x_pos = 14; // starting x pos after "you played: "
-            mvwhline(cards, 2, 2, ' ', line_x - 2);
-            mvwprintw(cards, 2, 2, "You played: ");
+            mvwhline(cards, 4, 2, ' ', line_x - 2);
 
-            for (int i = 0; i < played_hand_size; i++) {
-                char *msg = return_card(played_hand[i]);
+            if (any_selected) {
+                mvwprintw(cards, 4, 2, "You played: ");
+                for (int i = 0; i < played_hand_size; i++) {
+                    char *msg = return_card(played_hand[i]);
 
-                if (strstr(msg, PIK)) wattron(cards, COLOR_PAIR(WHITE));
-                else if (strstr(msg, KREUZ)) wattron(cards, COLOR_PAIR(BLUE));
-                else if (strstr(msg, KARO)) wattron(cards, COLOR_PAIR(YELLOW));
-                else if (strstr(msg, HERZ)) wattron(cards, COLOR_PAIR(RED));
+                    if (strstr(msg, PIK)) wattron(cards, COLOR_PAIR(WHITE));
+                    else if (strstr(msg, KREUZ)) wattron(cards, COLOR_PAIR(BLUE));
+                    else if (strstr(msg, KARO)) wattron(cards, COLOR_PAIR(YELLOW));
+                    else if (strstr(msg, HERZ)) wattron(cards, COLOR_PAIR(RED));
 
-                mvwprintw(cards, 2, x_pos, "%s", msg);
-                x_pos += (int) strlen(msg);
+                    mvwprintw(cards, 4, x_pos, "%s", msg);
+                    x_pos += (int) strlen(msg);
 
-                wattroff(cards, COLOR_PAIR(WHITE));
-                wattroff(cards, COLOR_PAIR(BLUE));
-                wattroff(cards, COLOR_PAIR(YELLOW));
-                wattroff(cards, COLOR_PAIR(RED));
+                    wattroff(cards, COLOR_PAIR(WHITE));
+                    wattroff(cards, COLOR_PAIR(BLUE));
+                    wattroff(cards, COLOR_PAIR(YELLOW));
+                    wattroff(cards, COLOR_PAIR(RED));
 
-                free(msg);
+                    free(msg);
+                }
+
+            } else {
+                mvwprintw(cards, 4, 2, "You passed.");
+                turn = 0;
             }
 
-            wrefresh(cards);
             memset(played_hand, 0, hand_size * sizeof(int));
             played_hand_size = 0;
             played = 0;
+            any_selected = 0;
+            wrefresh(cards);
         }
 
         choice = wgetch(win);
@@ -280,25 +292,30 @@ int main() {
                 if (highlight == hand_size) highlight = 0;
                 break;
 
-            case 10:
+            case 10: // enter
             case KEY_UP:
                 selected_cards[highlight] = !selected_cards[highlight];
                 break;
 
-            case 32: { // enter
-                    int new_index = 0;
-                    for (int i = 0; i < hand_size; i++) {
-                        if (selected_cards[i]) {
-                            played_hand[played_hand_size++] = player_deck[i];
-                        } else {
-                            player_deck[new_index++] = player_deck[i];
+            case 32: { // space
+                if (turn) {
+                        int new_index = 0;
+                        any_selected = 0;
+
+                        for (int i = 0; i < hand_size; i++) {
+                            if (selected_cards[i]) {
+                                any_selected = 1;
+                                played_hand[played_hand_size++] = player_deck[i];
+                            } else {
+                                player_deck[new_index++] = player_deck[i];
+                            }
+                            selected_cards[i] = 0;
                         }
-                        selected_cards[i] = 0;
+                        played = 1;
+                        hand_size = new_index;
+                        if (highlight > new_index) highlight = new_index - 1;
+                        memset(selected_cards, 0, hand_size * sizeof(int));
                     }
-                    hand_size = new_index;
-                    if (highlight > new_index) highlight = new_index - 1;
-                    memset(selected_cards, 0, hand_size * sizeof(int));
-                    played = 1;
                 }
                 break;
 
