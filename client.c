@@ -72,17 +72,18 @@ int main() {
     printf("Port:\n");
     printf("-> ");
 
-    char port[6];
-    fgets(port, 5, stdin);
+    char port[100];
+    fgets(port, 100, stdin);
     port[strcspn(port, "\n")] = 0;
     if (port[0] == '\0') {
         strcpy(port, "25565");
     }
 
-
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(atoi(port));
     inet_pton(AF_INET, ip, &serv_addr.sin_addr);
+
+    printf("Trying to connect to %s:%s...\n", ip, port);
 
     if ((connect_timeout(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr), 8) == -1)) {
         exit(1);
@@ -98,7 +99,20 @@ int main() {
     } while (name[0] == 0);
 
 
+
+
     send(sock, name, strlen(name), 0);
+
+    while(1) {
+        char buffer[16];
+        ssize_t len = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (len > 0) {
+            buffer[len] = '\0';
+            if (strcmp(buffer, "tien") == 0) {
+                send(sock, "len", 4, 0);
+            }
+        }
+    }
 
     char buffer[1024] = {0};
     read(sock, buffer, sizeof(buffer));
