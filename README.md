@@ -42,4 +42,8 @@ Usually, when playing a *High card* round, a `2 of Hearts` is unbeatable, as nat
 #### Instant win
 Having a quartet of 2's on hand, automatically wins the game, regardless of being played or not.
 
+### TODO:
+- fix server handling
+- add game logic
+
 
