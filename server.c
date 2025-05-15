@@ -85,23 +85,55 @@ int main() {
     listen(server_fd, NUM_PLAYERS);
     printf("Warten auf andere Spieler...\n");
 
-    while (player_count < 4) {
+    fd_set readfds;
+    struct timeval tv;
+    tv.tv_sec = 3;  // check every 3 sec
+    tv.tv_usec = 0;
 
-        int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen);
-        if (new_socket < 0) {
-            perror("accept");
-            continue;
+    while (player_count < NUM_PLAYERS) {
+        FD_ZERO(&readfds);
+        FD_SET(server_fd, &readfds);
+        int max_fd = server_fd;
+
+        // add all current sockets to set
+        for (int i = 0; i < player_count; i++) {
+            if (client_sockets[i] != -1) {
+                FD_SET(client_sockets[i], &readfds);
+                if (client_sockets[i] > max_fd) max_fd = client_sockets[i];
+            }
         }
 
-        char name[30];
-        ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
-        name[b_recv] = '\0';
+        // check for new connections
+        int active = select(max_fd + 1, &readfds, NULL, NULL, &tv);
 
-        client_sockets[player_count] = new_socket;
-        strcpy(players[player_count], name);
+        if (FD_ISSET(server_fd, &readfds)) {
+            int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen);
 
-        player_count++;
-        printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
+            char name[30];
+            ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
+            name[b_recv] = '\0';
+
+            client_sockets[player_count] = new_socket;
+            strcpy(players[player_count], name);
+
+            player_count++;
+            printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
+        }
+
+        // check for disconnects
+        for (int i = 0; i < player_count; i++) {
+            if (client_sockets[i] != -1 && FD_ISSET(client_sockets[i], &readfds)) {
+                char temp;
+                int b_recv = (int) recv(client_sockets[i], &temp, 1, MSG_PEEK);
+                if (b_recv <= 0) {
+                    player_count--;
+                    printf("Player %s disconnected. (%d/%d)\n", players[i], player_count, NUM_PLAYERS);
+
+                    close(client_sockets[i]);
+                    client_sockets[i] = -1;
+                }
+            }
+        }
     }
 
     // gameplay logic
