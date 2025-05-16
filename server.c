@@ -22,7 +22,7 @@ char players[NUM_PLAYERS][30];
 Card hands[NUM_PLAYERS][13];
 int running = 1;
 int player_count = 0;
-int client_sockets[NUM_PLAYERS] = { 0 };
+int client_sockets[NUM_PLAYERS];
 int server_fd;
 
 typedef struct {
@@ -166,6 +166,11 @@ void *io_thread(void* arg) {
 
 
 int main() {
+
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        client_sockets[i] = -1;
+    }
+
     struct sockaddr_in address;
     signal(SIGINT, handle_ctrlc);
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
