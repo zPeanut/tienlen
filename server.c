@@ -98,6 +98,7 @@ void *io_thread(void* arg) {
 
             // comma seperated player list
             char player_list[256] = "";
+            strcat(player_list, "PLAYERS:");
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if(client_sockets[i] != -1) {
                     strcat(player_list, players[i]);
@@ -178,7 +179,7 @@ int main() {
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
-    printf("Port: %d\n", PORT);
+    printf("Port: %d\n", address.sin_port);
     bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     listen(server_fd, NUM_PLAYERS);
     printf("Warten auf andere Spieler...\n");
@@ -199,6 +200,7 @@ int main() {
             pthread_cond_wait(&queue_cond, &queue_lock);
         }
 
+        // enqueue message received from client
         MessageEntry *entry;
         STAILQ_FOREACH(entry, &message_queue, entries) {
 
@@ -211,7 +213,10 @@ int main() {
                 }
             }
 
-            // remove from q
+            // GAME LOGIC HERE
+
+
+            // remove from queue
             STAILQ_REMOVE_HEAD(&message_queue, entries);
             free(entry);
         }

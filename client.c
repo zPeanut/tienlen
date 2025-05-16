@@ -25,6 +25,9 @@
 #define BLUE 97
 #define RED 96
 
+#define NUM_PLAYERS 4
+#define MAX_NAME_LENGTH 30
+
 void init_deck(Deck *deck) {
     int i = 0;
     for (int j = 0; j < NUM_SUITS; j++) {
@@ -134,6 +137,21 @@ int connect_timeout(int socket, struct sockaddr *address, socklen_t address_leng
     return 0;
 }
 
+int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
+    char *token = strchr(buffer, ':');
+    if (token != NULL) {
+        token++;
+
+        token = strtok(token, ",");
+        int i = 0;
+        while (token != NULL && i < NUM_PLAYERS) {
+            strcpy(players[i], token);
+            i++;
+            token = strtok(NULL, ",");
+        }
+    }
+}
+
 
 int main() {
     setlocale(LC_ALL, "");
@@ -148,7 +166,7 @@ int main() {
     int played_hand_size = 0;
     int any_selected = 0; // check if any win_chat are even played
     int turn = 1; // turn check flag
-    char players[4][30] = {0};
+    char players[NUM_PLAYERS][MAX_NAME_LENGTH] = {0};
 
     Card player_deck[hand_size]; // current win_hand
     Card played_hand[hand_size]; // played win_hand (on turn)
@@ -193,15 +211,26 @@ int main() {
 
     printf("Connected to %s:%s\n", ip, port);
 
-    char name[30];
+    char name[MAX_NAME_LENGTH];
     do {
         printf("Enter your name?\n");
         printf("-> ");
-        fgets(name, 30, stdin);
+        fgets(name, MAX_NAME_LENGTH, stdin);
         name[strcspn(name, "\n")] = 0;
     } while (name[0] == 0);
 
     send(sock, name, strlen(name), 0);
+
+    // build initial userlist from server
+    char recv_buffer[256];
+    ssize_t received = recv(sock, recv_buffer, sizeof(recv_buffer) - 1, 0);
+    if (received > 0) {
+        recv_buffer[received] = '\0';
+
+        // parse player names with comma
+        memset(players, 0, sizeof(players)); // clear old array
+        parse_names(recv_buffer, players);
+    }
 
     int flags = fcntl(sock, F_GETFL, 0);
     fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
@@ -287,12 +316,11 @@ int main() {
 
         mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
 
+
+
         // TODO: add actual users here
-        for (int i = 0; i < 4; i++) {
-            if (players[i] != 0) {
-                mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
-            }
-        }
+        for (int i = 0; i < NUM_PLAYERS; i++) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+
 
         wrefresh(win_hand);
         wrefresh(win_chat);
