@@ -46,49 +46,6 @@ void handle_ctrlc(int signal) {
     exit(0);
 }
 
-void init_deck(Deck *deck) {
-    int i = 0;
-    for (int j = 0; j < NUM_SUITS; j++) {
-        for (int k = 0; k < NUM_RANKS; k++) {
-            deck -> cards[i].suit = j;
-            deck -> cards[i].rank = k;
-            i++;
-        }
-    }
-    deck -> index = 0;
-}
-
-void shuffle_deck(Deck *deck) {
-    srand(time(NULL));
-    for (int i = NUM_CARDS - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        Card temp = deck -> cards[i];
-        deck -> cards[i] = deck -> cards[j];
-        deck -> cards[j] = temp;
-    }
-}
-
-Card deal_card(Deck *deck) {
-    if (deck -> index >= NUM_CARDS) {
-        exit(1);
-    }
-    return deck -> cards[deck -> index++];
-}
-
-void print_card(Card card) {
-    const char *suit_names[] = {"♠", "♣", "♦", "♥"};
-    const char *rank_names[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10","J", "Q", "K", "A"};
-    printf("[%s%s]\n", rank_names[card.rank], suit_names[card.suit]);
-}
-
-void send_message(const char *message, int except_fd) {
-    for (int i = 0; i < player_count; i++) {
-        if (client_sockets[i] != except_fd) {
-            send(client_sockets[i], message, strlen(message), 0);
-        }
-    }
-}
-
 void *io_thread(void* arg) {
     fd_set readfds;
     int max_fd;
@@ -154,7 +111,7 @@ void *io_thread(void* arg) {
                     send(client_sockets[i], player_list, strlen(player_list), 0);
                 }
             }
-            pthread_mutex_lock(&player_lock);
+            pthread_mutex_unlock(&player_lock);
         }
 
         pthread_mutex_lock(&player_lock);
@@ -204,13 +161,12 @@ void *io_thread(void* arg) {
         }
         pthread_mutex_unlock(&player_lock);
     }
+    return NULL;
 }
 
 
 int main() {
     struct sockaddr_in address;
-    socklen_t addrlen = sizeof(address);
-
     signal(SIGINT, handle_ctrlc);
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     printf("Socket erstellt.\n");
@@ -222,42 +178,44 @@ int main() {
     listen(server_fd, NUM_PLAYERS);
     printf("Warten auf andere Spieler...\n");
 
-    fd_set readfds;
-    struct timeval tv;
-    tv.tv_sec = 3;  // check every 3 sec
-    tv.tv_usec = 0;
+    // init io queue
+    STAILQ_INIT(&message_queue);
 
-    while (player_count < NUM_PLAYERS) {
-        FD_ZERO(&readfds);
-        FD_SET(server_fd, &readfds);
+    // init io thread
+    pthread_t thread_io;
+    pthread_create(&thread_io, NULL, io_thread, NULL);
 
-    }
+    // game loop
+    while(running) {
+        pthread_mutex_lock(&queue_lock);
 
-    // gameplay logic
-    Deck *deck = malloc(sizeof(*deck));
-    init_deck(deck);
-
-    // shuffling cards and dealing
-    shuffle_deck(deck);
-    char* str1 = "Shuffling cards...\n";
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        send(client_sockets[i], str1, strlen(str1), 0);
-        usleep(500 * 1000);
-    }
-
-    char* str2 = "Dealing cards...\n";
-    for (int i = 0; i < NUM_PLAYERS; i++) {
-        send(client_sockets[i], str2, strlen(str2), 0);
-        usleep(500 * 1000);
-    }
-
-    for (int j = 0; j < 13; j++) {
-        for (int i = 0; i < NUM_PLAYERS; i++) {
-            hands[i][j] = deck->cards[deck->index];
-            deck->index++;
+        // wait if nothing is being sent
+        while (STAILQ_EMPTY(&message_queue)) {
+            pthread_cond_wait(&queue_cond, &queue_lock);
         }
+
+        MessageEntry *entry;
+        STAILQ_FOREACH(entry, &message_queue, entries) {
+
+            printf("Received: %s\n", entry->message.buffer);
+
+            // broadcast to other players
+            for (int i = 0; i < NUM_PLAYERS; i++) {
+                if (client_sockets[i] != -1 && client_sockets[i] != entry->message.client_fd) {
+                    send(client_sockets[i], entry->message.buffer, strlen(entry->message.buffer), 0);
+                }
+            }
+
+            // remove from q
+            STAILQ_REMOVE_HEAD(&message_queue, entries);
+            free(entry);
+        }
+
+        pthread_mutex_unlock(&queue_lock);
     }
 
+    // exit cleanup
+    pthread_join(thread_io, NULL);
     close(server_fd);
     return 0;
 }
