@@ -203,22 +203,6 @@ int main() {
 
     send(sock, name, strlen(name), 0);
 
-    // build initial userlist from server
-    char recv_buffer[256];
-    ssize_t received = recv(sock, recv_buffer, sizeof(recv_buffer) - 1, 0);
-    if (received > 0) {
-        recv_buffer[received] = '\0';
-        // parse player names with comma
-        memset(players, 0, sizeof(players)); // clear old array
-        char *token = strtok(recv_buffer, ",");
-        int i = 0;
-        while (token != NULL && i < 4) {
-            strncpy(players[i], token, sizeof(players[i]) - 1);
-            i++;
-            token = strtok(NULL, ",");
-        }
-    }
-
     int flags = fcntl(sock, F_GETFL, 0);
     fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
 
@@ -302,31 +286,6 @@ int main() {
         }
 
         mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
-
-        // --- BEGIN RECEIVING DATA ---
-        if (FD_ISSET(sock, &readfds)) {
-            char buffer[256];
-            ssize_t received = recv(sock, buffer, sizeof(buffer) - 1, 0);
-            if (received > 0) {
-                buffer[received] = '\0';
-
-                if (strstr(buffer, ",")) {
-                    memset(players, 0, sizeof(players));
-                    char *token = strtok(buffer, ",");
-                    int i = 0;
-                    while (token != NULL && i < 4) {
-                        strncpy(players[i], token, sizeof(players[i]) - 1);
-                        i++;
-                        token = strtok(NULL, ",");
-                    }
-                } else if (strstr(buffer, "DISCONNECT")) {
-
-                }
-            } else if (received == 0) {
-                // Server disconnected
-                break;
-            }
-        }
 
         // TODO: add actual users here
         for (int i = 0; i < 4; i++) {
