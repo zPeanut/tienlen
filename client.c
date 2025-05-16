@@ -209,10 +209,11 @@ int main() {
         exit(1);
     }
 
-    printf("Connected to %s:%s\n", ip, port);
+    printf("Connected to %s:56675\n", ip);
 
     char name[MAX_NAME_LENGTH];
     do {
+        memset(name, 0, sizeof(name));
         printf("Enter your name?\n");
         printf("-> ");
         fgets(name, MAX_NAME_LENGTH, stdin);
@@ -305,17 +306,6 @@ int main() {
         struct timeval tv = {0}; // non block check
         tv.tv_usec = 100000; // 100ms timeout
 
-        int line_x = 3 * (width / 4); // 3/4th of the screen
-        for (int y = 1; y < height - 1; y++) {
-            mvwaddch(win_user, y, line_x, ACS_VLINE); // draw vertical line for connected users
-        }
-
-        for (int x = line_x + 2; x < width - 2; x++) {
-            mvwaddch(win_user, 3, x, ACS_HLINE); // draw underline
-        }
-
-        mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
-
         // --- BEGIN RECEIVING DATA ---
         if (FD_ISSET(sock, &readfds)) {
             char buffer[256];
@@ -328,13 +318,29 @@ int main() {
                     parse_names(buffer, players);
                 }
             } else if (recv_loop == 0) {
-                // server disconnected
-                break;
+                goto end;
             }
         }
 
+        int line_x = 3 * (width / 4); // 3/4th of the screen
+        for (int y = 1; y < height - 1; y++) {
+            mvwaddch(win_user, y, line_x, ACS_VLINE); // draw vertical line for connected users
+        }
+
+        for (int x = line_x + 2; x < width - 2; x++) {
+            mvwaddch(win_user, 3, x, ACS_HLINE); // draw underline
+
+            for (int y = 0; y < NUM_PLAYERS; y++) {
+                mvwaddch(win_user, 5 + y * 2, x, ' '); // clear old users
+            }
+        }
+
+        mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
+
         // TODO: add actual users here
-        for (int i = 0; i < NUM_PLAYERS; i++) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+        }
 
 
         wrefresh(win_hand);
@@ -479,8 +485,10 @@ int main() {
 
     end:
     // exit program
+    move(0,0);
     endwin();
     free(deck);
     close(sock);
+    printf("Server closed!\n");
     return 0;
 }
