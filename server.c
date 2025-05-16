@@ -37,6 +37,7 @@ typedef struct message_entry {
 
 STAILQ_HEAD(stailq_head, message_entry) message_queue;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t player_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
 
 void handle_ctrlc(int signal) {
@@ -88,6 +89,123 @@ void send_message(const char *message, int except_fd) {
     }
 }
 
+void *io_thread(void* arg) {
+    fd_set readfds;
+    int max_fd;
+    struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };
+
+    while (running) {
+
+        FD_ZERO(&readfds);
+        FD_SET(server_fd, &readfds);
+        max_fd = server_fd;
+
+        pthread_mutex_lock(&player_lock);
+        // add all current sockets to set
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            if (client_sockets[i] != -1) {
+                FD_SET(client_sockets[i], &readfds);
+                if (client_sockets[i] > max_fd) max_fd = client_sockets[i];
+            }
+        }
+        pthread_mutex_unlock(&player_lock);
+
+        int activity = select(max_fd + 1, &readfds, NULL, NULL, &tv);
+        if (activity < 0 && running) continue;
+
+        // handle new connections
+        if (FD_ISSET(server_fd, &readfds)) {
+            struct sockaddr_in address;
+            socklen_t address_length = sizeof(address);
+
+            int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &address_length);
+            char name[30];
+            ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
+            if (b_recv <= 0) {
+                // disconnect before entering name -> handle with message maybe?
+                close(new_socket);
+                continue;
+            }
+
+            pthread_mutex_lock(&player_lock);
+
+            for (int i = 0; i < NUM_PLAYERS; i++) {
+                if (client_sockets[i] == -1) {
+                    client_sockets[i] = new_socket;
+                    strcpy(players[i], name);
+                    break;
+                }
+            }
+            player_count++;
+            printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
+
+            // comma seperated player list
+            char player_list[256] = "";
+            for (int i = 0; i < NUM_PLAYERS; i++) {
+                if(client_sockets[i] != -1) {
+                    strcat(player_list, players[i]);
+                    if (i < player_count - 1) strcat(player_list, ",");
+                }
+            }
+
+            // send that to all clients
+            for (int i = 0; i < player_count; i++) {
+                if(client_sockets[i] != -1) {
+                    send(client_sockets[i], player_list, strlen(player_list), 0);
+                }
+            }
+            pthread_mutex_lock(&player_lock);
+        }
+
+        pthread_mutex_lock(&player_lock);
+
+        // check for disconnects
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+
+            if (client_sockets[i] != -1 && FD_ISSET(client_sockets[i], &readfds)) {
+
+                char buffer[256];
+                ssize_t b_recv = recv(client_sockets[i], &buffer, 1, MSG_PEEK);
+
+                if (b_recv <= 0) {
+                    player_count--;
+                    printf("Player %s disconnected. (%d/%d)\n", players[i], player_count, NUM_PLAYERS);
+                    close(client_sockets[i]);
+                    client_sockets[i] = -1;
+
+                    // make updated player lists (after disconnects)
+                    char player_list[256] = "";
+                    for (int j = 0; j < NUM_PLAYERS; j++) {
+                        if (client_sockets[j] != -1) { // Only include connected players
+                            strcat(player_list, players[j]);
+                            if (j < NUM_PLAYERS - 1) strcat(player_list, ",");
+                        }
+                    }
+
+                    for (int j = 0; j < NUM_PLAYERS; j++) {
+                        if (client_sockets[j] != -1) {
+                            send(client_sockets[j], player_list, strlen(player_list), 0);
+                        }
+                    }
+                } else {
+                    // queue handler
+
+                    buffer[b_recv] = '\0';
+                    MessageEntry *entry = malloc(sizeof(MessageEntry));
+                    entry->message.client_fd = client_sockets[i];
+                    strcpy(entry->message.buffer, buffer);
+
+                    pthread_mutex_lock(&queue_lock);
+                    STAILQ_INSERT_TAIL(&message_queue, entry, entries);
+                    pthread_cond_signal(&queue_cond);
+                    pthread_mutex_unlock(&queue_lock);
+                }
+            }
+        }
+        pthread_mutex_unlock(&player_lock);
+    }
+}
+
 
 int main() {
     struct sockaddr_in address;
@@ -112,71 +230,7 @@ int main() {
     while (player_count < NUM_PLAYERS) {
         FD_ZERO(&readfds);
         FD_SET(server_fd, &readfds);
-        int max_fd = server_fd;
 
-        // add all current sockets to set
-        for (int i = 0; i < player_count; i++) {
-            if (client_sockets[i] != -1) {
-                FD_SET(client_sockets[i], &readfds);
-                if (client_sockets[i] > max_fd) max_fd = client_sockets[i];
-            }
-        }
-
-        if (FD_ISSET(server_fd, &readfds)) {
-            int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen);
-
-            char name[30];
-            ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
-            name[b_recv] = '\0';
-
-            client_sockets[player_count] = new_socket;
-            strcpy(players[player_count], name);
-
-            player_count++;
-            printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
-
-            // comma seperated names list
-            char player_list[256];
-            for (int i = 0; i < player_count; i++) {
-                strcat(player_list, players[i]);
-                if (i < player_count - 1) strcat(player_list, ",");
-            }
-
-            // send that to all clients
-            for (int i = 0; i < player_count; i++) {
-                send(client_sockets[i], player_list, strlen(player_list), 0);
-            }
-
-        }
-
-        // check for disconnects
-        for (int i = 0; i < player_count; i++) {
-            if (client_sockets[i] != -1 && FD_ISSET(client_sockets[i], &readfds)) {
-                char temp;
-                int b_recv = (int) recv(client_sockets[i], &temp, 1, MSG_PEEK);
-                if (b_recv <= 0) {
-                    player_count--;
-                    printf("Player %s disconnected. (%d/%d)\n", players[i], player_count, NUM_PLAYERS);
-                    close(client_sockets[i]);
-                    client_sockets[i] = -1;
-
-                    // make updated player lists (after disconnects)
-                    char player_list[256] = "";
-                    for (int j = 0; j < NUM_PLAYERS; j++) {
-                        if (client_sockets[j] != -1) { // Only include connected players
-                            strcat(player_list, players[j]);
-                            if (j < NUM_PLAYERS - 1) strcat(player_list, ",");
-                        }
-                    }
-
-                    for (int j = 0; j < NUM_PLAYERS; j++) {
-                        if (client_sockets[j] != -1) {
-                            send(client_sockets[j], player_list, strlen(player_list), 0);
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // gameplay logic
