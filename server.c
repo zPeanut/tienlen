@@ -13,6 +13,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/queue.h>
 
 #define PORT 25565
 #define NUM_PLAYERS 4
@@ -24,7 +25,19 @@ int player_count = 0;
 int client_sockets[NUM_PLAYERS] = { 0 };
 int server_fd;
 
-pthread_mutex_t player_lock = PTHREAD_MUTEX_INITIALIZER;
+typedef struct {
+    int client_fd;
+    char buffer[256];
+} Message;
+
+typedef struct message_entry {
+    Message message;
+    STAILQ_ENTRY(message_entry) entries;
+} MessageEntry;
+
+STAILQ_HEAD(stailq_head, message_entry) message_queue;
+pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
 
 void handle_ctrlc(int signal) {
     printf("Closing server...\n");
