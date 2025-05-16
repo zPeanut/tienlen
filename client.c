@@ -316,7 +316,22 @@ int main() {
 
         mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
 
+        // --- BEGIN RECEIVING DATA ---
+        if (FD_ISSET(sock, &readfds)) {
+            char buffer[256];
+            ssize_t recv_loop = recv(sock, buffer, sizeof(buffer) - 1, 0);
+            if (recv_loop > 1) {
+                buffer[recv_loop] = '\0'; // ensure null termiantion at the end of received data
 
+                if (strstr(buffer, "PLAYERS:")) {
+                    memset(players, 0, sizeof(players)); // clear old array
+                    parse_names(buffer, players);
+                }
+            } else if (recv_loop == 0) {
+                // server disconnected
+                break;
+            }
+        }
 
         // TODO: add actual users here
         for (int i = 0; i < NUM_PLAYERS; i++) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
