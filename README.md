@@ -45,14 +45,21 @@ Having a quartet of 2's on hand, automatically wins the game, regardless of bein
 ### TODO:
 - add waiting room, to wait for players to connect
 - add game logic
-  - server needs to deal cards to players
-  - add turn based card laying by clients
+  
+  client:
   - add ui element to signify what type of hand is being played right now
-  - add general game logic (including bombs, instant win etc.)
-  - add server messages indicating which player played what
-  - add server message indicating player passed
   - add pass button to ui (keybind? visual button?) -> currently playing nothing is a pass (might need to rework or not)
+  - display score counter somewhere (maybe on connected users list)
+
+  server:
+  - server needs to deal cards to players
+  - add general game logic (including bombs, instant win etc.)
+  - add turn based card laying by clients
   - add score tracking (winning a game adds one point to the respective player)
+    
+  both:
+  - display server messages indicating which player played what
+  - display server message indicating player passed
 
 future:
   - add special message if player won with `3 of aces`
