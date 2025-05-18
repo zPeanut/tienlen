@@ -1,25 +1,47 @@
 //
-// Created by must9 on 12/05/2025.
+// Created by must9 on 18.05.2025.
 //
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include "cards.h"
 
-#define NUM_CARDS 52
-#define NUM_SUITS 4
-#define NUM_RANKS 13
+void init_deck(Deck *deck) {
+    int i = 0;
+    for (int j = 0; j < NUM_SUITS; j++) {
+        for (int k = 0; k < NUM_RANKS; k++) {
+            deck->cards[i].suit = j;
+            deck->cards[i].rank = k;
+            i++;
+        }
+    }
+    deck->index = 0;
+}
 
-typedef enum {
-    PIK, KREUZ, KARO, HERZ
-} Suit;
+void shuffle_deck(Deck *deck) {
+    srand(time(NULL));
+    for (int i = NUM_CARDS - 1; i > 0; i--) {
+        int j = rand() % i + 1;
+        Card temp = deck->cards[i];
+        deck->cards[i] = deck->cards[j];
+        deck->cards[j] = temp;
+    }
+}
 
-typedef enum {
-    ZWEI, DREI, VIER, FÜNF, SECHS, SIEBEN, ACHT, NEUN, ZEHN, BUBE, DAME, KÖNIG, ASS
-} Rank;
+int compare_by_rank(const void *a, const void *b) {
+    Card *card1 = (Card *) a;
+    Card *card2 = (Card *) b;
 
-typedef struct {
-    Suit suit;
-    Rank rank;
-} Card;
+    if (card1->rank != card2->rank) {
+        return (int) (card1->rank - card2->rank);
+    }
+    return (int) (card1->suit - card2->suit);
+}
 
-typedef struct {
-    Card cards[NUM_CARDS];
-    int index; // top card
-} Deck;
+char *return_card(Card card) {
+    char *s = malloc(8);
+    const char *suit_names[] = {"♠", "♣", "♦", "♥"};
+    const char *rank_names[] = {"3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"};
+    sprintf(s, "%s%s", rank_names[card.rank], suit_names[card.suit]);
+    return s;
+}

@@ -9,11 +9,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <time.h>
 #include <locale.h>
-#include "cards.c"
 #include "errno.h"
 #include "ncurses.h"
+
+#include "cards.h"
 
 #define PIK "♠"
 #define KREUZ "♣"
@@ -25,51 +25,12 @@
 #define BLUE 97
 #define RED 96
 
-#define NUM_PLAYERS 4
 #define MAX_NAME_LENGTH 30
 
 #define DEFAULT_IP "127.0.0.1"
-#define DEFAULT_PORT "25565"
+#define DEFAULT_PORT 25565
 
-void init_deck(Deck *deck) {
-    int i = 0;
-    for (int j = 0; j < NUM_SUITS; j++) {
-        for (int k = 0; k < NUM_RANKS; k++) {
-            deck->cards[i].suit = j;
-            deck->cards[i].rank = k;
-            i++;
-        }
-    }
-    deck->index = 0;
-}
-
-void shuffle_deck(Deck *deck) {
-    srand(time(NULL));
-    for (int i = NUM_CARDS - 1; i > 0; i--) {
-        int j = rand() % i + 1;
-        Card temp = deck->cards[i];
-        deck->cards[i] = deck->cards[j];
-        deck->cards[j] = temp;
-    }
-}
-
-int compare_by_rank(const void *a, const void *b) {
-    Card *card1 = (Card *) a;
-    Card *card2 = (Card *) b;
-
-    if (card1->rank != card2->rank) {
-        return (int) (card1->rank - card2->rank);
-    }
-    return (int) (card1->suit - card2->suit);
-}
-
-char *return_card(Card card) {
-    char *s = malloc(8);
-    const char *suit_names[] = {"♠", "♣", "♦", "♥"};
-    const char *rank_names[] = {"3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"};
-    sprintf(s, "%s%s", rank_names[card.rank], suit_names[card.suit]);
-    return s;
-}
+int player_count = 0;
 
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, int *selected_cards) {
 
@@ -195,7 +156,7 @@ char* get_client_ip() {
     return ip;
 }
 
-char* get_client_port() {
+int get_client_port() {
     printf("Port:\n");
     printf("-> ");
 
@@ -203,11 +164,9 @@ char* get_client_port() {
     fgets(client_port, 100, stdin);
     client_port[strcspn(client_port, "\n")] = 0;
     if (client_port[0] == '\0') {
-        strcpy(client_port, DEFAULT_PORT);
+        sprintf(client_port, "%i", DEFAULT_PORT);
     }
-    unsigned long str_size = strlen(client_port) + 1;
-    char *port = malloc(str_size);
-    strncpy(port, client_port, str_size);
+    int port = atol(client_port);
     return port;
 }
 
@@ -230,16 +189,16 @@ char* get_client_name() {
 int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
 
     char* ip = get_client_ip();
-    char* port = get_client_port();
+    int port = get_client_port();
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serv_addr;
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(atol(port));
+    serv_addr.sin_port = htons(port);
     inet_pton(AF_INET, ip, &serv_addr.sin_addr);
 
-    printf("Trying to connect to %s:%s...\n", ip, port);
+    printf("Trying to connect to %s:%i...\n", ip, port);
     if ((connect_timeout(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr), timeout) == -1)) {
         close(sock);
         exit(1);
@@ -257,6 +216,7 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
         recv_buffer[received] = '\0';
 
         // parse player names with comma
+        memset(players, 0, sizeof(*players));
         parse_names(recv_buffer, players);
     }
 
@@ -265,7 +225,6 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
 
     free(ip);
     free(name);
-    free(port);
     return sock;
 }
 
@@ -307,6 +266,7 @@ int main() {
     int played_hand_size = 0;
     int any_selected = 0; // check if any win_server are even played
     int turn = 1; // turn check flag
+    int all_players_connected = 0;
 
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = {0};
 
@@ -343,7 +303,10 @@ int main() {
     int line_x = 3 * (width / 4); // 3/4th of the screen
     mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
     for (int i = 0; i < NUM_PLAYERS; i++) {
-        mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+        if(strlen(players[i]) > 0) {
+            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+            player_count++;
+        }
     }
     wrefresh(win_user);
 
@@ -370,20 +333,28 @@ int main() {
                 buffer[recv_loop] = '\0'; // ensure null termiantion at the end of received data
 
                 if (strstr(buffer, "PLAYERS:")) {
-                    if (parse_names(buffer, players)) { // Only update if players changed
-                        for (int i = line_x + 2; i < width - 2; i++) {
-                            for (int j = 0; j < NUM_PLAYERS; j++) {
-                                mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
-                                mvwprintw(win_user, 5 + j * 2, line_x + 2, "%s", players[j]);
-                            }
+                    if (parse_names(buffer, players)) { // only update if players changed
+
+                        player_count = 0;
+                        for (int i = 0; i < NUM_PLAYERS; i++) {
+                            if (strlen(players[i]) > 0) player_count++;
                         }
-                        wnoutrefresh(win_user); // Queue for refresh
+                        all_players_connected = (player_count == NUM_PLAYERS);
                     }
+
+                    for (int i = line_x + 2; i < width - 2; i++) {
+                        for (int j = 0; j < NUM_PLAYERS; j++) {
+                            mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
+                            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+                        }
+                    }
+                    wnoutrefresh(win_user); // queue for refresh
                 }
             } else if (recv_loop == 0) {
                 goto end;
             }
         }
+
 
         // --- BEGIN UI SECTION ---
         int x;
@@ -397,15 +368,33 @@ int main() {
             mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
         }
 
+        // USER LIST LOOP
         mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
         for (int i = 0; i < NUM_PLAYERS; i++) {
-            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+            if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+        }
+        // --- END UI SECTION ---
+
+        // waiting room
+        if (!all_players_connected) {
+            werase(win_hand);
+            box(win_hand, 0, 0);
+
+            // Display waiting message
+            mvwprintw(win_hand, win_height/2, (win_width - 40)/2, " Waiting for players to connect... (%d/%d) ", player_count, NUM_PLAYERS);
+
+            wrefresh(win_user);
+            wrefresh(win_hand);
+            doupdate();
+            continue;
         }
 
         // -- animation begin --
         if (!flag) {
+
             for (int i = 0; i < hand_size; i++) {
 
+                // calculate total length for centering
                 total_len = 0;
                 for (int j = 0; j <= i; j++) {
                     char *s = return_card(player_deck[j]);
@@ -414,9 +403,9 @@ int main() {
                     if (j < i) total_len += 2;
                 }
 
-                mvwhline(win_hand, y, 2, ' ', win_width - 10);
                 x = (win_width - total_len) / 2;
 
+                mvwhline(win_hand, y, 2, ' ', win_width - 10);
                 draw_hand(win_hand, y, x, i + 1, player_deck, highlight, selected_cards);
 
                 wrefresh(win_hand);
@@ -430,6 +419,7 @@ int main() {
 
         mvwhline(win_hand, y, 2, ' ', win_width - 10);
 
+        // calculate total length again
         total_len = 0;
         for (int j = 0; j < hand_size; j++) {
             char *s = return_card(player_deck[j]);
@@ -521,18 +511,19 @@ int main() {
                         hand_size = new_index;
                         if (highlight > new_index) highlight = new_index - 1;
                         memset(selected_cards, 0, hand_size * sizeof(int));
-                        }
                     }
+                }
                     break;
 
                 default:
                     goto end;
             }
         }
-        // --- END CONTROLS ---
-
-        doupdate();
     }
+    // --- END CONTROLS ---
+
+    doupdate();
+
     // ---- END GAME LOOP ----
 
     end:
