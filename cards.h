@@ -1,5 +1,5 @@
 //
-// Created by must9 on 12/05/2025.
+// Created by peanut on 12.05.2025
 //
 
 #define NUM_CARDS 52

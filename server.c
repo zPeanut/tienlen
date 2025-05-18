@@ -1,5 +1,5 @@
 //
-// Created by peanut on 12/05/2025.
+// Created by peanut on 12.05.2025
 //
 
 #include <stdio.h>
