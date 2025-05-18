@@ -18,7 +18,7 @@
 #define PORT 25565
 
 char players[NUM_PLAYERS][30];
-Card hands[NUM_PLAYERS][13];
+Card hands[NUM_PLAYERS][HAND_SIZE];
 int running = 1;
 int player_count = 0;
 int client_sockets[NUM_PLAYERS];
@@ -45,6 +45,12 @@ void handle_ctrlc(int signal) {
     exit(0);
 }
 
+void send_message(int fd, const char *type, const char *content) {
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s:%s\n", type, content);
+    write(fd, buffer, strlen(buffer));
+}
+
 void *io_thread(void* arg) {
     fd_set readfds;
     int max_fd;
@@ -67,59 +73,84 @@ void *io_thread(void* arg) {
         pthread_mutex_unlock(&player_lock);
 
         int activity = select(max_fd + 1, &readfds, NULL, NULL, &tv);
-        if (activity < 0 && running) continue;
+        if (activity < 0) continue; // server down
 
         // handle new connections
         if (FD_ISSET(server_fd, &readfds)) {
             struct sockaddr_in address;
             socklen_t address_length = sizeof(address);
-
             int new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &address_length);
+
             char name[30];
-            ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
+            ssize_t b_recv = read(new_socket, name, sizeof(name) - 1);
             if (b_recv <= 0) {
                 // disconnect before entering name -> TODO: handle with message maybe?
                 close(new_socket);
                 continue;
             }
             name[b_recv] = '\0';
+
+
             pthread_mutex_lock(&player_lock);
-
-
             // copy entered names into players array
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if (client_sockets[i] == -1) {
                     client_sockets[i] = new_socket;
                     memset(players[i], 0, sizeof(players[i]));
-                    strcpy(players[i], name);
+                    strncpy(players[i], name, sizeof(players[i]));
                     break;
                 }
             }
+
             player_count++;
             printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
 
+            if (player_count == NUM_PLAYERS) {
+                Deck *deck = malloc(sizeof(*deck));
+                init_deck(deck);
+                shuffle_deck(deck);
+
+                for (int i = 0; i < NUM_PLAYERS; i++) {
+                    for (int j = 0; j < HAND_SIZE; j++) {
+                        hands[i][j] = deck->cards[HAND_SIZE * i + j];
+                    }
+
+                    char deal_msg[256];
+                    for (int j = 0; j < HAND_SIZE; j++) {
+                        int suit = hands[i][j].suit;
+                        int rank = hands[i][j].rank;
+                        char card_str[10];
+                        snprintf(card_str, sizeof(card_str), "%d,%d;", suit, rank);
+                        strcat(deal_msg, card_str);
+                    }
+                    send_message(client_sockets[i], "DEAL", deal_msg);
+                }
+                printf("Game started with all players.\n");
+                printf("Cards dealt.\n");
+                free(deck);
+            }
+
             // comma seperated player list
-            char player_list_cn[256] = "";
-            strcat(player_list_cn, "PLAYERS:");
+            char player_list_cn[256];
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if(client_sockets[i] != -1) {
                     strcat(player_list_cn, players[i]);
                     if (i < player_count - 1) strcat(player_list_cn, ",");
                 }
             }
+            player_list_cn[strlen(player_list_cn)] = '\0';
 
             // send that to all clients
             for (int i = 0; i < player_count; i++) {
                 if(client_sockets[i] != -1) {
-                    send(client_sockets[i], player_list_cn, strlen(player_list_cn), 0);
+                    send_message(client_sockets[i], "PLAYERS", player_list_cn);
                 }
             }
             pthread_mutex_unlock(&player_lock);
         }
 
-        pthread_mutex_lock(&player_lock);
-
         // check for disconnects
+        pthread_mutex_lock(&player_lock);
         for (int i = 0; i < NUM_PLAYERS; i++) {
 
             if (client_sockets[i] != -1 && FD_ISSET(client_sockets[i], &readfds)) {
@@ -134,25 +165,24 @@ void *io_thread(void* arg) {
                     client_sockets[i] = -1;
 
                     // make updated player lists (after disconnects)
-                    char player_list_dc[256] = "";
-                    strcat(player_list_dc, "PLAYERS:");
+                    char player_list_dc[256];
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) { // only include connected players
                             strcat(player_list_dc, players[j]);
                             if (j < NUM_PLAYERS - 1) strcat(player_list_dc, ",");
                         }
                     }
+                    player_list_dc[strlen(player_list_dc)] = '\0';
 
                     // send updated player list to client (with removed names)
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) {
-                            send(client_sockets[j], player_list_dc, strlen(player_list_dc), 0);
+                            send_message(client_sockets[i], "PLAYERS", player_list_dc);
                         }
                     }
                 } else {
-
                     // queue handler
-
+                    read(client_sockets[i], buffer, sizeof(buffer));
                     buffer[b_recv] = '\0';
                     MessageEntry *entry = malloc(sizeof(MessageEntry));
                     entry->message.client_fd = client_sockets[i];
@@ -181,10 +211,12 @@ int main() {
     signal(SIGINT, handle_ctrlc);
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     printf("Socket erstellt.\n");
+
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
     printf("Port: %d\n", PORT);
+
     int b = bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     if (b != 0) {
         perror("bind");
@@ -211,14 +243,13 @@ int main() {
 
         // enqueue message received from client
         MessageEntry *entry;
-        STAILQ_FOREACH(entry, &message_queue, entries) {
-
+        while ((entry = STAILQ_FIRST(&message_queue)) != NULL) {
             printf("Received: %s\n", entry->message.buffer);
 
             // broadcast to other players
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if (client_sockets[i] != -1 && client_sockets[i] != entry->message.client_fd) {
-                    send(client_sockets[i], entry->message.buffer, strlen(entry->message.buffer), 0);
+                    write(client_sockets[i], entry->message.buffer, strlen(entry->message.buffer));
                 }
             }
 

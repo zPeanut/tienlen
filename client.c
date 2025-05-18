@@ -33,10 +33,9 @@
 int player_count = 0;
 
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards) {
-
     for (int i = 0; i < loop_limit; i++) {
-        char *s = return_card(player_deck[i]);
 
+        char *s = return_card(player_deck[i]);
         if (strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
         if (strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
         if (strstr(s, KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
@@ -211,11 +210,11 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
     printf("Connected to %s:%d\n", ip, port);
 
     char* name = get_client_name();
-    send(sock, name, strlen(name), 0);
+    write(sock, name, strlen(name));
 
     // build initial userlist from server
     char recv_buffer[256];
-    ssize_t received = recv(sock, recv_buffer, sizeof(recv_buffer) - 1, 0);
+    ssize_t received = read(sock, recv_buffer, sizeof(recv_buffer) - 1);
     if (received > 0) {
         recv_buffer[received] = '\0';
 
@@ -267,7 +266,7 @@ int main() {
     int any_selected = 0;           // check if any cards are even selected
     int choice;                     // choice = key input
     int flag = 0;                   // flag = check if animation already played
-    int hand_size = 13;             // max win_hand size (always 13, even if fewer than 4 players are connected)
+    int hand_size = HAND_SIZE;      // max win_hand size (always 13, even if fewer than 4 players are connected)
     int highlight = 0;              // highlight flag for selected card
     int played = 0;                 // keep track if it's your turn or not
     int played_hand_size = 0;
@@ -314,8 +313,6 @@ int main() {
     }
     wrefresh(win_user);
 
-    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
-
     // ---- END UI-INIT ----
 
 
@@ -326,15 +323,14 @@ int main() {
         FD_ZERO(&readfds);
         FD_SET(sock, &readfds); // monitor socket
 
-        struct timeval tv = {0}; // non block check
-        tv.tv_usec = 100000; // 100ms timeout
+        struct timeval tv = { .tv_usec = 100000 }; // non block check
 
         // --- BEGIN RECEIVING DATA ---
         if (FD_ISSET(sock, &readfds)) {
             char buffer[256];
-            ssize_t recv_loop = recv(sock, buffer, sizeof(buffer) - 1, 0);
+            ssize_t recv_loop = read(sock, buffer, sizeof(buffer) - 1);
             if (recv_loop > 1) {
-                buffer[recv_loop] = '\0'; // ensure null termiantion at the end of received data
+                buffer[recv_loop] = '\0'; // ensure null termination
 
                 if (strstr(buffer, "PLAYERS:")) {
                     if (parse_names(buffer, players)) { // only update if players changed
@@ -353,6 +349,15 @@ int main() {
                         }
                     }
                     wnoutrefresh(win_user); // queue for refresh
+                } else if (strstr(buffer, "DEAL:")) {
+                    char* token = strtok(buffer + 5, ";"); // skip prefix
+
+                    for (int i = 0; i < hand_size && token; i++) {
+                        sscanf(token, "%d,%d", (int *) &player_deck[i].suit, (int *) &player_deck[i].rank);
+                        token = strtok(NULL, ";");
+                    }
+                    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
+                    flag = 0;
                 }
             } else if (recv_loop == 0) {
                 goto end;

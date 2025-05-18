@@ -4,8 +4,8 @@
 
 #define NUM_CARDS 52
 #define NUM_SUITS 4
-#define NUM_RANKS 13
-#define NUM_PLAYERS 4
+#define NUM_PLAYERS 2
+#define HAND_SIZE 13
 
 typedef enum {
     PIK, KREUZ, KARO, HERZ

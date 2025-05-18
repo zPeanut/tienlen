@@ -9,7 +9,7 @@
 void init_deck(Deck *deck) {
     int i = 0;
     for (int j = 0; j < NUM_SUITS; j++) {
-        for (int k = 0; k < NUM_RANKS; k++) {
+        for (int k = 0; k < HAND_SIZE; k++) {
             deck->cards[i].suit = j;
             deck->cards[i].rank = k;
             i++;
