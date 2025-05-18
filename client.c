@@ -28,6 +28,9 @@
 #define NUM_PLAYERS 4
 #define MAX_NAME_LENGTH 30
 
+#define DEFAULT_IP "127.0.0.1"
+#define DEFAULT_PORT "25565"
+
 void init_deck(Deck *deck) {
     int i = 0;
     for (int j = 0; j < NUM_SUITS; j++) {
@@ -174,6 +177,98 @@ int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
     return players_changed;
 }
 
+char* get_client_ip() {
+    printf("Server IP:\n");
+    printf("-> ");
+
+    char client_ip[100];
+    fgets(client_ip, 100, stdin);
+    client_ip[strcspn(client_ip, "\n")] = 0;
+
+    if (client_ip[0] == '\0') {
+        strcpy(client_ip, DEFAULT_IP);
+    }
+
+    unsigned long str_size = strlen(client_ip) + 1;
+    char *ip = malloc(str_size);
+    strncpy(ip, client_ip, str_size);
+    return ip;
+}
+
+char* get_client_port() {
+    printf("Port:\n");
+    printf("-> ");
+
+    char client_port[100];
+    fgets(client_port, 100, stdin);
+    client_port[strcspn(client_port, "\n")] = 0;
+    if (client_port[0] == '\0') {
+        strcpy(client_port, DEFAULT_PORT);
+    }
+    unsigned long str_size = strlen(client_port) + 1;
+    char *port = malloc(str_size);
+    strncpy(port, client_port, str_size);
+    return port;
+}
+
+char* get_client_name() {
+    char client_name[MAX_NAME_LENGTH];
+    do {
+        memset(client_name, 0, sizeof(client_name));
+        printf("Enter your client_name?\n");
+        printf("-> ");
+        fgets(client_name, MAX_NAME_LENGTH, stdin);
+        client_name[strcspn(client_name, "\n")] = 0;
+    } while (client_name[0] == 0);
+
+    unsigned long str_size = strlen(client_name) + 1;
+    char *name = malloc(str_size);
+    strncpy(name, client_name, str_size);
+    return name;
+}
+
+int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
+
+    char* ip = get_client_ip();
+    char* port = get_client_port();
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in serv_addr;
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(atol(port));
+    inet_pton(AF_INET, ip, &serv_addr.sin_addr);
+
+    printf("Trying to connect to %s:%s...\n", ip, port);
+    if ((connect_timeout(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr), timeout) == -1)) {
+        close(sock);
+        exit(1);
+    }
+
+    printf("Connected to %s:56675\n", ip);
+
+    char* name = get_client_name();
+    send(sock, name, strlen(name), 0);
+
+    // build initial userlist from server
+    char recv_buffer[256];
+    ssize_t received = recv(sock, recv_buffer, sizeof(recv_buffer) - 1, 0);
+    if (received > 0) {
+        recv_buffer[received] = '\0';
+
+        // parse player names with comma
+        parse_names(recv_buffer, players);
+    }
+
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
+
+    free(ip);
+    free(name);
+    free(port);
+    return sock;
+}
+
 
 int main() {
     setlocale(LC_ALL, "");
@@ -188,75 +283,18 @@ int main() {
     int played_hand_size = 0;
     int any_selected = 0; // check if any win_chat are even played
     int turn = 1; // turn check flag
+
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = {0};
 
     Card player_deck[hand_size]; // current win_hand
     Card played_hand[hand_size]; // played win_hand (on turn)
-    // need to init array to NULL to check if win_chat are inside it
-    memset(played_hand, 0, hand_size * sizeof(int));
+    memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_chat are inside it
     // ---- END VARIABLE DECLARATION ----
 
 
     // ---- BEGIN INIT PHASE ----
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in serv_addr;
-
-    printf("Server IP:\n");
-    printf("-> ");
-
-    char ip[100];
-    fgets(ip, 100, stdin);
-    ip[strcspn(ip, "\n")] = 0;
-    if (ip[0] == '\0') {
-        strcpy(ip, "127.0.0.1");
-    }
-
-    printf("Port:\n");
-    printf("-> ");
-
-    char port[100];
-    fgets(port, 100, stdin);
-    port[strcspn(port, "\n")] = 0;
-    if (port[0] == '\0') {
-        strcpy(port, "25565");
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(atoi(port));
-    inet_pton(AF_INET, ip, &serv_addr.sin_addr);
-
-    printf("Trying to connect to %s:%s...\n", ip, port);
-
-    if ((connect_timeout(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr), 8) == -1)) {
-        exit(1);
-    }
-
-    printf("Connected to %s:56675\n", ip);
-
-    char name[MAX_NAME_LENGTH];
-    do {
-        memset(name, 0, sizeof(name));
-        printf("Enter your name?\n");
-        printf("-> ");
-        fgets(name, MAX_NAME_LENGTH, stdin);
-        name[strcspn(name, "\n")] = 0;
-    } while (name[0] == 0);
-
-    send(sock, name, strlen(name), 0);
-
-    // build initial userlist from server
-    char recv_buffer[256];
-    ssize_t received = recv(sock, recv_buffer, sizeof(recv_buffer) - 1, 0);
-    if (received > 0) {
-        recv_buffer[received] = '\0';
-
-        // parse player names with comma
-        memset(players, 0, sizeof(players)); // clear old array
-        parse_names(recv_buffer, players);
-    }
-
-    int flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
+    int sock = setup_connection(8, players);
+    // --- END INIT PHASE ---
 
     // ---- BEGIN UI-INIT PHASE ----
     initscr();
