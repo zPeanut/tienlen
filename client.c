@@ -269,6 +269,30 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
     return sock;
 }
 
+int setup_ncurses_ui() {
+    initscr();
+    start_color();
+    noecho();
+    cbreak();
+    curs_set(0);
+
+    if (!has_colors()) {
+        printw("Your terminal doesnt support colors! Session terminated.\n");
+        printw("Press any key to continue...");
+        getch();
+        endwin();
+        return 1;
+    }
+
+    // color initialization
+    init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);     // spades
+    init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);       // clubs
+    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);   // diamonds
+    init_pair(RED, COLOR_RED, COLOR_BLACK);         // hearts
+
+    return 0;
+}
+
 
 int main() {
     setlocale(LC_ALL, "");
@@ -291,36 +315,11 @@ int main() {
     memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_chat are inside it
     // ---- END VARIABLE DECLARATION ----
 
+    int sock = setup_connection(8, players); // setup client connection to server
 
-    // ---- BEGIN INIT PHASE ----
-    int sock = setup_connection(8, players);
-    // --- END INIT PHASE ---
+    // ---- BEGIN UI-INIT  ----
 
-    // ---- BEGIN UI-INIT PHASE ----
-    initscr();
-    start_color();
-    noecho();
-    cbreak();
-    curs_set(0);
-
-    if (!has_colors()) {
-        printw("Your terminal doesnt support colors! Session terminated.\n");
-        printw("Press any key to continue...");
-        getch();
-        endwin();
-        return 0;
-    }
-
-    // deck initialization
-    Deck *deck = malloc(sizeof(*deck));
-    init_deck(deck);
-    shuffle_deck(deck);
-
-    // color initialization
-    init_pair(WHITE, COLOR_WHITE, COLOR_BLACK);     // spades
-    init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);       // clubs
-    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);   // diamonds
-    init_pair(RED, COLOR_RED, COLOR_BLACK);         // hearts
+    setup_ncurses_ui();
 
     int y_max, x_max;
     getmaxyx(stdscr, y_max, x_max);
@@ -347,6 +346,18 @@ int main() {
     }
     wrefresh(win_user);
 
+    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_chat by rank
+
+    // ---- END UI-INIT PHASE ----
+
+
+    // --- BEGIN GAME SETUP ---
+
+    // deck initialization
+    Deck *deck = malloc(sizeof(*deck));
+    init_deck(deck);
+    shuffle_deck(deck);
+
     // give win_chat to player
     // TODO: this is supposed to be on the server, and every player needs this
     for (int i = 0; i < hand_size; i++) {
@@ -358,10 +369,6 @@ int main() {
         if (i < hand_size - 1) total_len += 2;
         free(s);
     }
-
-    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_chat by rank
-
-    // ---- END UI-INIT PHASE ----
 
 
     // ---- BEGIN GAME LOOP ----
