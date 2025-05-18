@@ -78,16 +78,19 @@ void *io_thread(void* arg) {
             char name[30];
             ssize_t b_recv = recv(new_socket, name, sizeof(name) - 1, 0);
             if (b_recv <= 0) {
-                // disconnect before entering name -> handle with message maybe?
+                // disconnect before entering name -> TODO: handle with message maybe?
                 close(new_socket);
                 continue;
             }
-
+            name[b_recv] = '\0';
             pthread_mutex_lock(&player_lock);
 
+
+            // copy entered names into players array
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if (client_sockets[i] == -1) {
                     client_sockets[i] = new_socket;
+                    memset(players[i], 0, sizeof(players[i]));
                     strcpy(players[i], name);
                     break;
                 }
@@ -140,12 +143,14 @@ void *io_thread(void* arg) {
                         }
                     }
 
+                    // send updated player list to client (with removed names)
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) {
                             send(client_sockets[j], player_list_dc, strlen(player_list_dc), 0);
                         }
                     }
                 } else {
+
                     // queue handler
 
                     buffer[b_recv] = '\0';
