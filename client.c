@@ -90,16 +90,21 @@ int connect_timeout(int socket, struct sockaddr *address, socklen_t address_leng
     int so_error;
     socklen_t len = sizeof(so_error);
     getsockopt(socket, SOL_SOCKET, SO_ERROR, &so_error, &len);
-
-    switch(errno) {
-        case EBADF: printf("Connection to server has failed! Socket is not a valid file descriptor.\n");
-        case EFAULT: printf("Connection to server has failed! An invalid user space address was specified for an argument.\n");
-        case EINVAL: printf("Connection to server has failed! Invalid argument.\n");
-        case ENOPROTOOPT: printf("Connection to server has failed! Protocol not available.\n");
-        case ENOTSOCK: printf("Connection to server has failed! File descriptor does not refer to a socket.\n");
-        return -1;
+    if (so_error != 0) {
+        switch (errno) {
+            case EBADF:
+                printf("Connection to server has failed! Socket is not a valid file descriptor.\n");
+            case EFAULT:
+                printf("Connection to server has failed! An invalid user space address was specified for an argument.\n");
+            case EINVAL:
+                printf("Connection to server has failed! Invalid argument.\n");
+            case ENOPROTOOPT:
+                printf("Connection to server has failed! Protocol not available.\n");
+            case ENOTSOCK:
+                printf("Connection to server has failed! File descriptor does not refer to a socket.\n");
+        }
+        return 1;
     }
-
     fcntl(socket, F_SETFL, flags & ~O_NONBLOCK);
     return 0;
 }
@@ -177,9 +182,13 @@ char* get_client_name() {
     char client_name[MAX_NAME_LENGTH];
     do {
         memset(client_name, 0, sizeof(client_name));
-        printf("Enter your client_name?\n");
+        printf("Username:\n");
         printf("-> ");
         fgets(client_name, MAX_NAME_LENGTH, stdin);
+        if (strpbrk(client_name, ",;")) {
+            printf("Invalid characters (`,` or `;`) in name.\n");
+            continue;
+        }
         client_name[strcspn(client_name, "\n")] = 0;
     } while (client_name[0] == 0);
 
