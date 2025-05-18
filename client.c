@@ -305,20 +305,20 @@ int main() {
     int selected_cards[hand_size]; // array of flags - checks if card at index is highlighted to be played
     int played = 0; // keep track if its your turn or not
     int played_hand_size = 0;
-    int any_selected = 0; // check if any win_chat are even played
+    int any_selected = 0; // check if any win_server are even played
     int turn = 1; // turn check flag
 
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = {0};
 
     Card player_deck[hand_size]; // current win_hand
     Card played_hand[hand_size]; // played win_hand (on turn)
-    memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_chat are inside it
-    // ---- END VARIABLE DECLARATION ----
+    memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_server are inside it
 
     int sock = setup_connection(8, players); // setup client connection to server
+    // ---- END VARIABLE DECLARATION ----
 
-    // ---- BEGIN UI-INIT  ----
 
+    // ---- BEGIN UI-INIT ----
     setup_ncurses_ui();
 
     int y_max, x_max;
@@ -326,12 +326,13 @@ int main() {
 
     int height = y_max - 7;
     int width = x_max - 10;
-    WINDOW *win_hand = newwin(0, width, height, 5); // win_hand window
-    WINDOW *win_chat = newwin(height, width, 0, 5); // played win_chat
+    WINDOW *win_hand = newwin(0, width, height, 5); // client hand
+    WINDOW *win_server = newwin(height, width, 0, 5); // server messages
     WINDOW *win_user = newwin(height, width, 0, 5); // connected users
     box(win_hand, 0, 0);
-    box(win_chat, 0, 0);
+    box(win_server, 0, 0);
     box(win_user, 0, 0);
+
     keypad(win_hand, true);
     nodelay(win_hand, true); // make input non-blocking
 
@@ -346,29 +347,9 @@ int main() {
     }
     wrefresh(win_user);
 
-    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_chat by rank
+    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
 
-    // ---- END UI-INIT PHASE ----
-
-
-    // --- BEGIN GAME SETUP ---
-
-    // deck initialization
-    Deck *deck = malloc(sizeof(*deck));
-    init_deck(deck);
-    shuffle_deck(deck);
-
-    // give win_chat to player
-    // TODO: this is supposed to be on the server, and every player needs this
-    for (int i = 0; i < hand_size; i++) {
-        selected_cards[i] = 0;
-        player_deck[i] = deck->cards[i];
-
-        char *s = return_card(deck->cards[i]);
-        total_len += (int) strlen(s);
-        if (i < hand_size - 1) total_len += 2;
-        free(s);
-    }
+    // ---- END UI-INIT ----
 
 
     // ---- BEGIN GAME LOOP ----
@@ -439,7 +420,7 @@ int main() {
                 draw_hand(win_hand, y, x, i + 1, player_deck, highlight, selected_cards);
 
                 wrefresh(win_hand);
-                wrefresh(win_chat);
+                wrefresh(win_server);
                 wrefresh(win_user);
                 usleep(100 * 1000);
             }
@@ -465,31 +446,31 @@ int main() {
         // --- BEGIN GAME LOGIC ---
         if (played && turn) {
             int x_pos = 14; // starting x pos after "you played: "
-            mvwhline(win_chat, 4, 2, ' ', line_x - 2);
+            mvwhline(win_server, 4, 2, ' ', line_x - 2);
 
             if (any_selected) {
-                mvwprintw(win_chat, 4, 2, "You played: ");
+                mvwprintw(win_server, 4, 2, "You played: ");
                 for (int i = 0; i < played_hand_size; i++) {
                     char *msg = return_card(played_hand[i]);
 
-                    if (strstr(msg, PIK)) wattron(win_chat, COLOR_PAIR(WHITE));
-                    else if (strstr(msg, KREUZ)) wattron(win_chat, COLOR_PAIR(BLUE));
-                    else if (strstr(msg, KARO)) wattron(win_chat, COLOR_PAIR(YELLOW));
-                    else if (strstr(msg, HERZ)) wattron(win_chat, COLOR_PAIR(RED));
+                    if (strstr(msg, PIK)) wattron(win_server, COLOR_PAIR(WHITE));
+                    else if (strstr(msg, KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
+                    else if (strstr(msg, KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
+                    else if (strstr(msg, HERZ)) wattron(win_server, COLOR_PAIR(RED));
 
-                    mvwprintw(win_chat, 4, x_pos, "%s", msg);
+                    mvwprintw(win_server, 4, x_pos, "%s", msg);
                     x_pos += (int) strlen(msg);
 
-                    wattroff(win_chat, COLOR_PAIR(WHITE));
-                    wattroff(win_chat, COLOR_PAIR(BLUE));
-                    wattroff(win_chat, COLOR_PAIR(YELLOW));
-                    wattroff(win_chat, COLOR_PAIR(RED));
+                    wattroff(win_server, COLOR_PAIR(WHITE));
+                    wattroff(win_server, COLOR_PAIR(BLUE));
+                    wattroff(win_server, COLOR_PAIR(YELLOW));
+                    wattroff(win_server, COLOR_PAIR(RED));
 
                     free(msg);
                 }
 
             } else {
-                mvwprintw(win_chat, 4, 2, "You passed.");
+                mvwprintw(win_server, 4, 2, "You passed.");
                 turn = 0;
             }
 
@@ -497,7 +478,7 @@ int main() {
             played_hand_size = 0;
             played = 0;
             any_selected = 0;
-            wrefresh(win_chat);
+            wrefresh(win_server);
         }
         // --- END GAME LOGIC ---
 
@@ -558,7 +539,6 @@ int main() {
     // exit program
     move(0,0);
     endwin();
-    free(deck);
     close(sock);
     printf("Server closed!\n");
     return 0;
