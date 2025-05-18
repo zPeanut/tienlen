@@ -10,9 +10,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <locale.h>
+
 #include "errno.h"
 #include "ncurses.h"
-
 #include "cards.h"
 
 #define PIK "♠"
@@ -92,8 +92,12 @@ int connect_timeout(int socket, struct sockaddr *address, socklen_t address_leng
     socklen_t len = sizeof(so_error);
     getsockopt(socket, SOL_SOCKET, SO_ERROR, &so_error, &len);
 
-    if (so_error != 0) {
-        printf("Connection to server has failed.\n");
+    switch(errno) {
+        case EBADF: printf("Connection to server has failed! Socket is not a valid file descriptor.\n");
+        case EFAULT: printf("Connection to server has failed! An invalid user space address was specified for an argument.\n");
+        case EINVAL: printf("Connection to server has failed! Invalid argument.\n");
+        case ENOPROTOOPT: printf("Connection to server has failed! Protocol not available.\n");
+        case ENOTSOCK: printf("Connection to server has failed! File descriptor does not refer to a socket.\n");
         return -1;
     }
 
@@ -204,7 +208,7 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
         exit(1);
     }
 
-    printf("Connected to %s:56675\n", ip);
+    printf("Connected to %s:%d\n", ip, port);
 
     char* name = get_client_name();
     send(sock, name, strlen(name), 0);

@@ -7,7 +7,6 @@
 #define NUM_RANKS 13
 #define NUM_PLAYERS 4
 
-
 typedef enum {
     PIK, KREUZ, KARO, HERZ
 } Suit;
