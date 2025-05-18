@@ -185,7 +185,11 @@ int main() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
     printf("Port: %d\n", PORT);
-    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
+    int b = bind(server_fd, (struct sockaddr *)&address, sizeof(address));
+    if (b != 0) {
+        perror("bind");
+        return -1;
+    }
     listen(server_fd, NUM_PLAYERS);
     printf("Warten auf andere Spieler...\n");
 

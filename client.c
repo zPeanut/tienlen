@@ -32,7 +32,7 @@
 
 int player_count = 0;
 
-void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, int *selected_cards) {
+void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards) {
 
     for (int i = 0; i < loop_limit; i++) {
         char *s = return_card(player_deck[i]);
@@ -170,7 +170,7 @@ int get_client_port() {
     if (client_port[0] == '\0') {
         sprintf(client_port, "%i", DEFAULT_PORT);
     }
-    int port = atol(client_port);
+    int port = (int) atol(client_port);
     return port;
 }
 
@@ -261,24 +261,24 @@ int main() {
     setlocale(LC_ALL, "");
 
     // ---- BEGIN VARIABLE DECLARATION ----
-    int hand_size = 13; // max win_hand size (always 13, even if fewer than 4 players are connected)
-    int choice, flag = 0; // choice = key input, flag = check if animation already played
-    int highlight = 0; // highlight current selected value
-    int total_len = 0; // total length of win_hand (used for centering)
-    int selected_cards[hand_size]; // array of flags - checks if card at index is highlighted to be played
-    int played = 0; // keep track if its your turn or not
-    int played_hand_size = 0;
-    int any_selected = 0; // check if any win_server are even played
-    int turn = 1; // turn check flag
-    int all_players_connected = 0;
-
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = {0};
+
+    int all_players_connected = 0;
+    int any_selected = 0;           // check if any cards are even selected
+    int choice;                     // choice = key input
+    int flag = 0;                   // flag = check if animation already played
+    int hand_size = 13;             // max win_hand size (always 13, even if fewer than 4 players are connected)
+    int highlight = 0;              // highlight flag for selected card
+    int played = 0;                 // keep track if it's your turn or not
+    int played_hand_size = 0;
+    int selected_cards[hand_size];                  // array of flags - checks if card at index is highlighted to be played
+    int sock = setup_connection(8, players); // setup client connection to server
+    int total_len;                                  // total length of win_hand (used for centering)
+    int turn = 1;                                   // turn check flag
 
     Card player_deck[hand_size]; // current win_hand
     Card played_hand[hand_size]; // played win_hand (on turn)
     memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_server are inside it
-
-    int sock = setup_connection(8, players); // setup client connection to server
     // ---- END VARIABLE DECLARATION ----
 
 
@@ -477,6 +477,7 @@ int main() {
         // --- END GAME LOGIC ---
 
 
+
         // --- BEGIN CONTROLS ---
         choice = wgetch(win_hand);
         if (choice != ERR) {
@@ -518,15 +519,14 @@ int main() {
                     }
                 }
                     break;
-
                 default:
                     goto end;
             }
         }
-    }
-    // --- END CONTROLS ---
+        // --- END CONTROLS ---
 
-    doupdate();
+        doupdate();
+    }
 
     // ---- END GAME LOOP ----
 
