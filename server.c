@@ -179,7 +179,7 @@ int main() {
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
-    printf("Port: %d\n", address.sin_port);
+    printf("Port: %d\n", PORT);
     bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     listen(server_fd, NUM_PLAYERS);
     printf("Warten auf andere Spieler...\n");
