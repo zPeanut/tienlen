@@ -48,7 +48,9 @@ void handle_ctrlc(int signal) {
 void send_message(int fd, const char *type, const char *content) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "%s:%s\n", type, content);
+    buffer[strlen(buffer)] = '\0';
     write(fd, buffer, strlen(buffer));
+    printf("%s\n", buffer);
 }
 
 void *io_thread(void* arg) {
@@ -121,7 +123,7 @@ void *io_thread(void* arg) {
                         int rank = hands[i][j].rank;
                         char card_str[10];
                         snprintf(card_str, sizeof(card_str), "%d,%d;", suit, rank);
-                        strcat(deal_msg, card_str);
+                        strncat(deal_msg, card_str, strlen(card_str));
                     }
                     send_message(client_sockets[i], "DEAL", deal_msg);
                 }
@@ -134,11 +136,10 @@ void *io_thread(void* arg) {
             char player_list_cn[256];
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if(client_sockets[i] != -1) {
-                    strcat(player_list_cn, players[i]);
-                    if (i < player_count - 1) strcat(player_list_cn, ",");
+                    strncat(player_list_cn, players[i], strlen(players[i]));
+                    if (i < player_count - 1) strncat(player_list_cn, ",", strlen(","));
                 }
             }
-            player_list_cn[strlen(player_list_cn)] = '\0';
 
             // send that to all clients
             for (int i = 0; i < player_count; i++) {
@@ -168,11 +169,10 @@ void *io_thread(void* arg) {
                     char player_list_dc[256];
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) { // only include connected players
-                            strcat(player_list_dc, players[j]);
-                            if (j < NUM_PLAYERS - 1) strcat(player_list_dc, ",");
+                            strncat(player_list_dc, players[j], strlen(players[j]));
+                            if (j < NUM_PLAYERS - 1) strncat(player_list_dc, ",", strlen(players[j]));
                         }
                     }
-                    player_list_dc[strlen(player_list_dc)] = '\0';
 
                     // send updated player list to client (with removed names)
                     for (int j = 0; j < NUM_PLAYERS; j++) {
@@ -186,7 +186,7 @@ void *io_thread(void* arg) {
                     buffer[b_recv] = '\0';
                     MessageEntry *entry = malloc(sizeof(MessageEntry));
                     entry->message.client_fd = client_sockets[i];
-                    strcpy(entry->message.buffer, buffer);
+                    strncpy(entry->message.buffer, buffer, sizeof(buffer));
 
                     pthread_mutex_lock(&queue_lock);
                     STAILQ_INSERT_TAIL(&message_queue, entry, entries);

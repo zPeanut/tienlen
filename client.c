@@ -167,7 +167,7 @@ int get_client_port() {
     fgets(client_port, 100, stdin);
     client_port[strcspn(client_port, "\n")] = 0;
     if (client_port[0] == '\0') {
-        sprintf(client_port, "%i", DEFAULT_PORT);
+        snprintf(client_port, 7, "%i", DEFAULT_PORT);
     }
     int port = (int) atol(client_port);
     return port;
@@ -349,7 +349,10 @@ int main() {
                         }
                     }
                     wnoutrefresh(win_user); // queue for refresh
-                } else if (strstr(buffer, "DEAL:")) {
+                }
+
+                else if (strstr(buffer, "DEAL:")) {
+                    memset(selected_cards, 0, sizeof(selected_cards)); // reset
                     char* token = strtok(buffer + 5, ";"); // skip prefix
 
                     for (int i = 0; i < hand_size && token; i++) {
@@ -359,6 +362,8 @@ int main() {
                     qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
                     flag = 0;
                 }
+
+
             } else if (recv_loop == 0) {
                 goto end;
             }
