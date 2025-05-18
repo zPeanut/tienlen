@@ -9,14 +9,13 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "cards.c"
-#include <time.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/queue.h>
 
+#include "cards.h"
+
 #define PORT 25565
-#define NUM_PLAYERS 4
 
 char players[NUM_PLAYERS][30];
 Card hands[NUM_PLAYERS][13];
