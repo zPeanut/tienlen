@@ -104,6 +104,7 @@ void *io_thread(void* arg) {
                 }
             }
 
+
             player_count++;
             printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
 
@@ -117,13 +118,13 @@ void *io_thread(void* arg) {
                         hands[i][j] = deck->cards[HAND_SIZE * i + j];
                     }
 
-                    char deal_msg[256];
+                    char deal_msg[256] = { 0 };
                     for (int j = 0; j < HAND_SIZE; j++) {
                         int suit = hands[i][j].suit;
                         int rank = hands[i][j].rank;
                         char card_str[10];
                         snprintf(card_str, sizeof(card_str), "%d,%d;", suit, rank);
-                        strncat(deal_msg, card_str, strlen(card_str));
+                        if (j < player_count - 1) strncat(deal_msg, card_str, strlen(card_str));
                     }
                     send_message(client_sockets[i], "DEAL", deal_msg);
                 }
@@ -133,17 +134,18 @@ void *io_thread(void* arg) {
             }
 
             // comma seperated player list
-            char player_list_cn[256];
+            char player_list_cn[256] = { 0 };
             for (int i = 0; i < NUM_PLAYERS; i++) {
                 if(client_sockets[i] != -1) {
                     strncat(player_list_cn, players[i], strlen(players[i]));
-                    if (i < player_count - 1) strncat(player_list_cn, ",", strlen(","));
+                    if (i < player_count - 1) strncat(player_list_cn, ",", 2);
                 }
             }
 
             // send that to all clients
             for (int i = 0; i < player_count; i++) {
                 if(client_sockets[i] != -1) {
+                    printf("Sent to %s: ", players[i]);
                     send_message(client_sockets[i], "PLAYERS", player_list_cn);
                 }
             }
@@ -166,11 +168,11 @@ void *io_thread(void* arg) {
                     client_sockets[i] = -1;
 
                     // make updated player lists (after disconnects)
-                    char player_list_dc[256];
+                    char player_list_dc[256] = { 0 };
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) { // only include connected players
                             strncat(player_list_dc, players[j], strlen(players[j]));
-                            if (j < NUM_PLAYERS - 1) strncat(player_list_dc, ",", strlen(players[j]));
+                            if (j < player_count - 1) strncat(player_list_dc, ",", strlen(players[j]));
                         }
                     }
 

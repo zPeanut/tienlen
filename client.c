@@ -189,7 +189,7 @@ char* get_client_name() {
             printf("Invalid characters (`,` or `;`) in name.\n");
             continue;
         }
-        client_name[strcspn(client_name, "\n")] = 0;
+        client_name[strcspn(client_name, "\n")] = '\0';
     } while (client_name[0] == 0);
 
     unsigned long str_size = strlen(client_name) + 1;
