@@ -35,7 +35,7 @@ int player_count = 0;
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards) {
     for (int i = 0; i < loop_limit; i++) {
 
-        char *s = return_card(player_deck[i]);
+        char* s = return_card(player_deck[i]);
         if (strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
         if (strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
         if (strstr(s, KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
@@ -110,7 +110,7 @@ int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
     char temp_players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
     int players_changed = 0;
 
-    char *token = strchr(buffer, ':');
+    char* token = strchr(buffer, ':');
     if (token != NULL) {
         token++;
 
@@ -154,7 +154,7 @@ char* get_client_ip() {
     }
 
     unsigned long str_size = strlen(client_ip) + 1;
-    char *ip = malloc(str_size);
+    char* ip = malloc(str_size);
     strncpy(ip, client_ip, str_size);
     return ip;
 }
@@ -184,7 +184,7 @@ char* get_client_name() {
     } while (client_name[0] == 0);
 
     unsigned long str_size = strlen(client_name) + 1;
-    char *name = malloc(str_size);
+    char* name = malloc(str_size);
     strncpy(name, client_name, str_size);
     return name;
 }
@@ -411,7 +411,7 @@ int main() {
                 // calculate total length for centering
                 total_len = 0;
                 for (int j = 0; j <= i; j++) {
-                    char *s = return_card(player_deck[j]);
+                    char* s = return_card(player_deck[j]);
                     total_len += (int) strlen(s);
                     free(s);
                     if (j < i) total_len += 2;
@@ -436,7 +436,7 @@ int main() {
         // calculate total length again
         total_len = 0;
         for (int j = 0; j < hand_size; j++) {
-            char *s = return_card(player_deck[j]);
+            char* s = return_card(player_deck[j]);
             total_len += (int) strlen(s);
             free(s);
             if (j < hand_size - 1) total_len += 2;
@@ -455,7 +455,7 @@ int main() {
             if (any_selected) {
                 mvwprintw(win_server, 4, 2, "You played: ");
                 for (int i = 0; i < played_hand_size; i++) {
-                    char *msg = return_card(played_hand[i]);
+                    char* msg = return_card(played_hand[i]);
 
                     if (strstr(msg, PIK)) wattron(win_server, COLOR_PAIR(WHITE));
                     else if (strstr(msg, KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));

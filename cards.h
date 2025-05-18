@@ -28,4 +28,4 @@ typedef struct {
 void init_deck(Deck *deck);
 void shuffle_deck(Deck *deck);
 int compare_by_rank(const void *a, const void *b);
-char *return_card(Card card);
+char* return_card(Card card);
