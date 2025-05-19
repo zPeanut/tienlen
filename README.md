@@ -5,8 +5,13 @@ This is a C implementation of the Vietnamese card game "Tiến lên", also known
 The game was written in C, as a personal challenge, and to improve my C capabilities. The user interface was built using the [Ncurses](https://invisible-island.net/ncurses/) library, while everything else (networking, game logic, supporting systems) were implemented by myself.
 
 ## Setup
-`server.c` and `client.c` need to be compiled using a standard C compiler, such as gcc, cmake or any other. 
-To compile `server.c` and `client.c` with gcc for example, type: `$ gcc server.c cards.c -o server -pthread`, and `$ gcc client.c cards.c -lncursesw -o client` respectively.
+`server.c` and `client.c` need to be compiled using a standard C compiler, such as gcc, cmake or any other.   
+#### server.c
+`$ gcc server.c cards.c -o server -pthread`
+
+#### client.c
+`$ gcc client.c cards.c -lncursesw -o client`  
+
 Run `server` on a machine, and connect via `client`, by typing in the corresponding IP. Locally hosted games are also possible, simply leave the IP field blank, when setting up the server, aswell as when you're connecting via the client.
 
 ## Game rules
