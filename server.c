@@ -108,31 +108,6 @@ void *io_thread(void* arg) {
             player_count++;
             printf("Player %s connected. (%d/%d)\n", name, player_count, NUM_PLAYERS);
 
-            if (player_count == NUM_PLAYERS) {
-                Deck *deck = malloc(sizeof(*deck));
-                init_deck(deck);
-                shuffle_deck(deck);
-
-                for (int i = 0; i < NUM_PLAYERS; i++) {
-                    for (int j = 0; j < HAND_SIZE; j++) {
-                        hands[i][j] = deck->cards[HAND_SIZE * i + j];
-                    }
-
-                    char deal_msg[256] = { 0 };
-                    for (int j = 0; j < HAND_SIZE; j++) {
-                        int suit = hands[i][j].suit;
-                        int rank = hands[i][j].rank;
-                        char card_str[10];
-                        snprintf(card_str, sizeof(card_str), "%d,%d;", suit, rank);
-                        if (j < player_count - 1) strncat(deal_msg, card_str, strlen(card_str));
-                    }
-                    send_message(client_sockets[i], "DEAL", deal_msg);
-                }
-                printf("Game started with all players.\n");
-                printf("Cards dealt.\n");
-                free(deck);
-            }
-
             // comma seperated player list
             char player_list_cn[256] = { 0 };
             for (int i = 0; i < NUM_PLAYERS; i++) {
@@ -149,6 +124,34 @@ void *io_thread(void* arg) {
                     send_message(client_sockets[i], "PLAYERS", player_list_cn);
                 }
             }
+
+            if (player_count == NUM_PLAYERS) {
+                Deck *deck = malloc(sizeof(*deck));
+                init_deck(deck);
+                shuffle_deck(deck);
+
+                for (int i = 0; i < NUM_PLAYERS; i++) {
+                    char deal_msg[256] = { 0 };
+                    for (int j = 0; j < HAND_SIZE; j++) {
+                        hands[i][j] = deck->cards[HAND_SIZE * i + j];
+
+                        int suit = hands[i][j].suit;
+                        int rank = hands[i][j].rank;
+                        char card_str[10];
+                        if (j < HAND_SIZE - 1) {
+                            snprintf(card_str, sizeof(card_str), "%d,%d;", suit, rank);
+                        } else {
+                            snprintf(card_str, sizeof(card_str), "%d,%d", suit, rank);
+                        }
+                        strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
+                    }
+                    send_message(client_sockets[i], "DEAL", deal_msg);
+                }
+                printf("Game started with all players.\n");
+                printf("Cards dealt.\n");
+                free(deck);
+            }
+
             pthread_mutex_unlock(&player_lock);
         }
 
@@ -172,7 +175,7 @@ void *io_thread(void* arg) {
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) { // only include connected players
                             strncat(player_list_dc, players[j], strlen(players[j]));
-                            if (j < player_count - 1) strncat(player_list_dc, ",", strlen(players[j]));
+                            if (j < player_count - 1) strncat(player_list_dc, ",", 2);
                         }
                     }
 
@@ -244,6 +247,13 @@ int main() {
         // wait if nothing is being sent
         while (STAILQ_EMPTY(&message_queue)) {
             pthread_cond_wait(&queue_cond, &queue_lock);
+        }
+
+        if (player_count < NUM_PLAYERS) {
+            printf("Server closed!\n");
+            pthread_join(thread_io, NULL);
+            close(server_fd);
+            return 0;
         }
 
         // enqueue message received from client

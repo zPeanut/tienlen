@@ -120,11 +120,9 @@ int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
         token++;
 
         token = strtok(token, ",");
-        int i = 0;
-        while (token != NULL && i < NUM_PLAYERS) {
-            strcpy(temp_players[i], token);
+        for (int i = 0; i < NUM_PLAYERS && token; i++) {
+            strncpy(temp_players[i], token, MAX_NAME_LENGTH - 1);
             temp_players[i][MAX_NAME_LENGTH - 1] = '\0';
-            i++;
             token = strtok(NULL, ",");
         }
     }
@@ -432,8 +430,8 @@ int main() {
                 for (int j = 0; j <= i; j++) {
                     char* s = return_card(player_deck[j]);
                     total_len += (int) strlen(s);
-                    free(s);
                     if (j < i) total_len += 2;
+                    free(s);
                 }
 
                 x = (win_width - total_len) / 2;
@@ -457,8 +455,8 @@ int main() {
         for (int j = 0; j < hand_size; j++) {
             char* s = return_card(player_deck[j]);
             total_len += (int) strlen(s);
-            free(s);
             if (j < hand_size - 1) total_len += 2;
+            free(s);
         }
 
         x = (win_width - total_len) / 2;
