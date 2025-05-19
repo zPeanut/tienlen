@@ -10,9 +10,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <errno.h>
+#include <ncurses.h>
 
-#include "errno.h"
-#include "ncurses.h"
 #include "cards.h"
 
 #define PIK "♠"
@@ -123,6 +123,7 @@ int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
         for (int i = 0; i < NUM_PLAYERS && token; i++) {
             strncpy(temp_players[i], token, MAX_NAME_LENGTH - 1);
             temp_players[i][MAX_NAME_LENGTH - 1] = '\0';
+            temp_players[i][strcspn(temp_players[i], "\n")] = '\0';
             token = strtok(NULL, ",");
         }
     }
@@ -342,38 +343,38 @@ int main() {
             if (recv_loop > 1) {
                 buffer[recv_loop] = '\0'; // ensure null termination
 
-                if (strstr(buffer, "PLAYERS:")) {
-                    if (parse_names(buffer, players)) { // only update if players changed
+                char* line = strtok(buffer, "\n");
+                while(line != NULL) {
+                    if (strstr(buffer, "PLAYERS:")) {
+                        if (parse_names(buffer, players)) { // only update if players changed
 
-                        player_count = 0;
-                        for (int i = 0; i < NUM_PLAYERS; i++) {
-                            if (strlen(players[i]) > 0) player_count++; // calculate new player count
+                            player_count = 0;
+                            for (int i = 0; i < NUM_PLAYERS; i++) {
+                                if (strlen(players[i]) > 0) player_count++; // calculate new player count
+                            }
                         }
-                    }
 
-                    for (int i = line_x + 2; i < width - 2; i++) {
-                        for (int j = 0; j < NUM_PLAYERS; j++) {
-                            mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
-                            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+                        for (int i = line_x + 2; i < width - 2; i++) {
+                            for (int j = 0; j < NUM_PLAYERS; j++) {
+                                mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
+                                mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+                            }
                         }
+                        all_players_connected = (player_count == NUM_PLAYERS);
+                        wnoutrefresh(win_user); // queue for refresh
+                    } else if (strstr(buffer, "DEAL:")) {
+                        memset(selected_cards, 0, sizeof(selected_cards)); // reset
+                        char *token = strtok(buffer + 5, ";"); // skip prefix
+
+                        for (int i = 0; i < hand_size && token; i++) {
+                            sscanf(token, "%d,%d", (int *) &player_deck[i].suit, (int *) &player_deck[i].rank);
+                            token = strtok(NULL, ";");
+                        }
+                        qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
+                        flag = 0;
                     }
-                    all_players_connected = (player_count == NUM_PLAYERS);
-                    wnoutrefresh(win_user); // queue for refresh
+                    line = strtok(NULL, "\n");
                 }
-
-                else if (strstr(buffer, "DEAL:")) {
-                    memset(selected_cards, 0, sizeof(selected_cards)); // reset
-                    char* token = strtok(buffer + 5, ";"); // skip prefix
-
-                    for (int i = 0; i < hand_size && token; i++) {
-                        sscanf(token, "%d,%d", (int *) &player_deck[i].suit, (int *) &player_deck[i].rank);
-                        token = strtok(NULL, ";");
-                    }
-                    qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
-                    flag = 0;
-                }
-
-
             } else if (recv_loop == 0) {
                 goto end;
             }

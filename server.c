@@ -47,7 +47,7 @@ void handle_ctrlc(int signal) {
 
 void send_message(int fd, const char* type, const char* content) {
     char buffer[256];
-    snprintf(buffer, sizeof(buffer), "%s:%s", type, content);
+    snprintf(buffer, sizeof(buffer), "%s:%s\n", type, content);
     write(fd, buffer, strlen(buffer));
     printf("%s\n", buffer);
 }
