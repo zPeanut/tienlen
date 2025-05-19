@@ -47,7 +47,7 @@ void handle_ctrlc(int signal) {
 
 void send_message(int fd, const char* type, const char* content) {
     char buffer[256];
-    snprintf(buffer, sizeof(buffer), "%s:%s\n", type, content);
+    snprintf(buffer, sizeof(buffer), "%s:%s", type, content);
     buffer[strlen(buffer)] = '\0';
     write(fd, buffer, strlen(buffer));
     printf("%s\n", buffer);
@@ -212,11 +212,8 @@ int main() {
     struct sockaddr_in address;
     signal(SIGINT, handle_ctrlc);
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int reuse = 1;
-    int result = setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse));
-    if ( result < 0 ) {
-        perror("ERROR SO_REUSEADDR:");
-    }
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
+        perror("setsockopt(SO_REUSEADDR) failed");
 
     printf("Socket erstellt.\n");
 
