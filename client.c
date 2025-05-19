@@ -137,7 +137,7 @@ int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
 
     if (players_changed) {
         // Update both current and previous arrays
-        memcpy(prev_players, players, sizeof(prev_players));
+        memcpy(prev_players, temp_players, sizeof(prev_players));
         memcpy(players, temp_players, sizeof(temp_players));
     }
 
@@ -220,11 +220,10 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
     write(sock, name, strlen(name));
 
     // build initial userlist from server
-    char recv_buffer[256];
+    char recv_buffer[256] = { 0 };
     ssize_t received = read(sock, recv_buffer, sizeof(recv_buffer) - 1);
+    recv_buffer[received] = '\0';
     if (received > 0) {
-        recv_buffer[received] = '\0';
-
         // parse player names with comma
         memset(players, 0, sizeof(*players));
         parse_names(recv_buffer, players);
@@ -318,14 +317,7 @@ int main() {
             mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
             player_count++;
         }
-    }
-
-    for (int i = 1; i < height - 1; i++) {
-        mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
-    }
-
-    for (int i = line_x + 2; i < width - 2; i++) {
-        mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
+        all_players_connected = (player_count == NUM_PLAYERS);
     }
 
     wrefresh(win_user);
@@ -357,7 +349,6 @@ int main() {
                         for (int i = 0; i < NUM_PLAYERS; i++) {
                             if (strlen(players[i]) > 0) player_count++; // calculate new player count
                         }
-                        all_players_connected = (player_count == NUM_PLAYERS);
                     }
 
                     for (int i = line_x + 2; i < width - 2; i++) {
@@ -366,6 +357,7 @@ int main() {
                             mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
                         }
                     }
+                    all_players_connected = (player_count == NUM_PLAYERS);
                     wnoutrefresh(win_user); // queue for refresh
                 }
 
@@ -393,6 +385,16 @@ int main() {
         int y = win_height / 2;
 
         // USER LIST LOOP
+
+        mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
+        for (int i = 1; i < height - 1; i++) {
+            mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
+        }
+
+        for (int i = line_x + 2; i < width - 2; i++) {
+            mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
+        }
+
         for (int i = 0; i < NUM_PLAYERS; i++) {
             if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
         }
@@ -400,7 +402,7 @@ int main() {
 
         // waiting room
         if (!all_players_connected) {
-
+            flag = 0;
             char* waiting_msg = " Waiting for players to connect";
             char* dots[] = { " ", ". ", ".. ", "... "};
             int num_frames = 4;
@@ -422,6 +424,8 @@ int main() {
 
         // -- animation begin --
         if (!flag) {
+            werase(win_hand);
+            box(win_hand, 0, 0);
 
             for (int i = 0; i < hand_size; i++) {
 
