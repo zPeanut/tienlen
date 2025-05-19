@@ -99,7 +99,7 @@ void *io_thread(void* arg) {
                 if (client_sockets[i] == -1) {
                     client_sockets[i] = new_socket;
                     memset(players[i], 0, sizeof(players[i]));
-                    strncpy(players[i], name, sizeof(players[i]));
+                    strncpy(players[i], name, sizeof(name));
                     break;
                 }
             }
@@ -179,7 +179,7 @@ void *io_thread(void* arg) {
                     // send updated player list to client (with removed names)
                     for (int j = 0; j < NUM_PLAYERS; j++) {
                         if (client_sockets[j] != -1) {
-                            send_message(client_sockets[i], "PLAYERS", player_list_dc);
+                            send_message(client_sockets[j], "PLAYERS", player_list_dc);
                         }
                     }
                 } else {
@@ -212,6 +212,12 @@ int main() {
     struct sockaddr_in address;
     signal(SIGINT, handle_ctrlc);
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int reuse = 1;
+    int result = setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse, sizeof(reuse));
+    if ( result < 0 ) {
+        perror("ERROR SO_REUSEADDR:");
+    }
+
     printf("Socket erstellt.\n");
 
     address.sin_family = AF_INET;
