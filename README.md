@@ -6,7 +6,7 @@ The game was written in C, as a personal challenge, and to improve my C capabili
 
 ## Setup
 `server.c` and `client.c` need to be compiled using a standard C compiler, such as gcc, cmake or any other. 
-To compile `server.c` and `client.c`with gcc for example, type: `$ gcc server.c cards.c -o server -pthread`, and `$ gcc client.c cards.c -lncursesw -o client` respectively.
+To compile `server.c` and `client.c` with gcc for example, type: `$ gcc server.c cards.c -o server -pthread`, and `$ gcc client.c cards.c -lncursesw -o client` respectively.
 Run `server` on a machine, and connect via `client`, by typing in the corresponding IP. Locally hosted games are also possible, simply leave the IP field blank, when setting up the server, aswell as when you're connecting via the client.
 
 ## Game rules
