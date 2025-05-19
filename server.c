@@ -48,7 +48,6 @@ void handle_ctrlc(int signal) {
 void send_message(int fd, const char* type, const char* content) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "%s:%s", type, content);
-    buffer[strlen(buffer)] = '\0';
     write(fd, buffer, strlen(buffer));
     printf("%s\n", buffer);
 }
@@ -116,6 +115,7 @@ void *io_thread(void* arg) {
                     if (i < player_count - 1) strncat(player_list_cn, ",", 2);
                 }
             }
+            player_list_cn[strlen(player_list_cn)] = '\0';
 
             // send that to all clients
             for (int i = 0; i < player_count; i++) {
@@ -145,6 +145,7 @@ void *io_thread(void* arg) {
                         }
                         strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
                     }
+                    printf("Sent to %s: ", players[i]);
                     send_message(client_sockets[i], "DEAL", deal_msg);
                 }
                 printf("Game started with all players.\n");
@@ -178,6 +179,7 @@ void *io_thread(void* arg) {
                             if (j < player_count - 1) strncat(player_list_dc, ",", 2);
                         }
                     }
+                    player_list_dc[strlen(player_list_dc)] = '\0';
 
                     // send updated player list to client (with removed names)
                     for (int j = 0; j < NUM_PLAYERS; j++) {
