@@ -123,7 +123,7 @@ int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
         int i = 0;
         while (token != NULL && i < NUM_PLAYERS) {
             strcpy(temp_players[i], token);
-            temp_players[i][MAX_NAME_LENGTH - 1] = '\0';
+            temp_players[i][strlen(temp_players[i]) - 1] = '\0';
             i++;
             token = strtok(NULL, ",");
         }
@@ -314,11 +314,9 @@ int main() {
     // initial rendering of userlist
     int line_x = 3 * (width / 4); // 3/4th of the screen
     mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
+
     for (int i = 0; i < NUM_PLAYERS; i++) {
-        if(strlen(players[i]) > 0) {
-            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
-            player_count++;
-        }
+        if(strlen(players[i]) > 0) player_count++;
     }
     for (int i = 1; i < height - 1; i++) {
         mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
@@ -330,7 +328,6 @@ int main() {
 
     wrefresh(win_user);
     wrefresh(win_hand);
-
     // ---- END UI-INIT ----
 
 
@@ -355,7 +352,7 @@ int main() {
 
                         player_count = 0;
                         for (int i = 0; i < NUM_PLAYERS; i++) {
-                            if (strlen(players[i]) > 0) player_count++;
+                            if (strlen(players[i]) > 0) player_count++; // calculate new player count
                         }
                         all_players_connected = (player_count == NUM_PLAYERS);
                     }
@@ -401,12 +398,11 @@ int main() {
         // waiting room
         if (!all_players_connected) {
 
-            // Display waiting message
             mvwprintw(win_hand, win_height/2, (win_width - 40)/2, " Waiting for players to connect... (%d/%d) ", player_count, NUM_PLAYERS);
 
             wrefresh(win_hand);
             wrefresh(win_user);
-            napms(100); // Add 100ms delay to reduce CPU usage
+            napms(100); // add 100ms delay to reduce cpu usage
             doupdate();
             continue;
         }
