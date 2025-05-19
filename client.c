@@ -320,7 +320,16 @@ int main() {
             player_count++;
         }
     }
+    for (int i = 1; i < height - 1; i++) {
+        mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
+    }
+
+    for (int i = line_x + 2; i < width - 2; i++) {
+        mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
+    }
+
     wrefresh(win_user);
+    wrefresh(win_hand);
 
     // ---- END UI-INIT ----
 
@@ -383,16 +392,7 @@ int main() {
         int x;
         int y = win_height / 2;
 
-        for (int i = 1; i < height - 1; i++) {
-            mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
-        }
-
-        for (int i = line_x + 2; i < width - 2; i++) {
-            mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
-        }
-
         // USER LIST LOOP
-        mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
         for (int i = 0; i < NUM_PLAYERS; i++) {
             if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
         }
@@ -400,14 +400,13 @@ int main() {
 
         // waiting room
         if (!all_players_connected) {
-            werase(win_hand);
-            box(win_hand, 0, 0);
 
             // Display waiting message
             mvwprintw(win_hand, win_height/2, (win_width - 40)/2, " Waiting for players to connect... (%d/%d) ", player_count, NUM_PLAYERS);
 
-            wrefresh(win_user);
             wrefresh(win_hand);
+            wrefresh(win_user);
+            napms(100); // Add 100ms delay to reduce CPU usage
             doupdate();
             continue;
         }
