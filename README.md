@@ -53,17 +53,18 @@ Having a quartet of 2's on hand, automatically wins the game, regardless of bein
 - add game logic
   
   client:
-  - add ui element to signify what type of hand is being played right now
-  - add pass button to ui (keybind? visual button?) -> currently playing nothing is a pass (might need to rework or not)
-  - display score counter somewhere (maybe on connected users list)
-  - display server messages indicating which player played what
-  - display server message indicating player passed
+  - [ ] add ui element to signify what type of hand is being played right now
+  - [ ] add pass button to ui (keybind? visual button?) -> currently playing nothing is a pass (might need to rework or not)
+  - [ ] display score counter somewhere (maybe on connected users list)
+  - [ ] display server messages indicating which player played what
+  - [ ] display server message indicating player passed
 
   server:
-  - server needs to deal cards to players
-  - add general game logic (including bombs, instant win etc.)
-  - add turn based card laying by clients (playing cards or passing)
-  - add score tracking (winning a game adds one point to the respective player)
+  - [X] add waiting room for connecting players
+  - [X] server needs to deal cards to players
+  - [ ] add general game logic (including bombs, instant win etc.)
+  - [ ] add turn based card laying by clients (playing cards or passing)
+  - [ ] add score tracking (winning a game adds one point to the respective player)
 
 future:
   - add special message if player won with `3 of aces`
