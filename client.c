@@ -286,7 +286,7 @@ int main() {
     // ---- END VARIABLE DECLARATION ----
 
 
-    // ---- BEGIN UI-INIT ----
+    // ---- BEGIN UI INIT ----
     setup_ncurses_ui();
 
     int y_max, x_max;
@@ -321,20 +321,17 @@ int main() {
 
     wrefresh(win_user);
     wrefresh(win_hand);
-    // ---- END UI-INIT ----
+    // ---- END UI INIT ----
 
 
-    // ---- BEGIN GAME LOOP ----
+    // game loop
     while (1) {
 
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(sock, &readfds); // monitor socket
 
-        struct timeval tv = { .tv_usec = 100000 }; // non block check
-
         // --- BEGIN RECEIVING DATA ---
-
         char buffer[256];
         ssize_t recv_loop = read(sock, buffer, sizeof(buffer) - 1);
         if (recv_loop > 1) {
@@ -389,14 +386,14 @@ int main() {
             recv_buffer_len = remaining;
             recv_buffer[recv_buffer_len] = '\0';
         }
+        // --- END RECEIVING DATA ---
 
 
         // --- BEGIN UI SECTION ---
         int x;
         int y = win_height / 2;
 
-        // USER LIST LOOP
-
+        // win_user loop
         mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
         for (int i = 1; i < height - 1; i++) {
             mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
@@ -409,7 +406,6 @@ int main() {
         for (int i = 0; i < NUM_PLAYERS; i++) {
             if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
         }
-        // --- END UI SECTION ---
 
         // waiting room
         if (!all_players_connected) {
@@ -519,8 +515,7 @@ int main() {
         // --- END GAME LOGIC ---
 
 
-
-        // --- BEGIN CONTROLS ---
+        // --- PARSE INPUT ---
         choice = wgetch(win_hand);
         if (choice != ERR) {
             switch (choice) {
@@ -565,12 +560,8 @@ int main() {
                     goto end;
             }
         }
-        // --- END CONTROLS ---
-
         doupdate();
     }
-
-    // ---- END GAME LOOP ----
 
     end:
     // exit program
