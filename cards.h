@@ -4,7 +4,7 @@
 
 #define NUM_CARDS 52
 #define NUM_SUITS 4
-#define NUM_PLAYERS 3
+#define NUM_PLAYERS 4
 #define HAND_SIZE 13
 
 typedef enum {
