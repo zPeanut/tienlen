@@ -85,6 +85,7 @@ int main() {
     int hand_size = HAND_SIZE;      // max win_hand size (always 13, even if fewer than 4 players are connected)
     int has_played = 0;             // keep track if it's your turn or not
     int highlight = 0;              // highlight animation_flag for selected card
+    int line_count = 2;             // line count for window
     char* name;
     int played_hand_size = 0;
     int player_count;
@@ -127,7 +128,6 @@ int main() {
     for (int i = 0; i < NUM_PLAYERS; i++) {
         if (strcmp(players[i], name) == 0) {
             client_position = i;
-            break;
         }
     }
 
@@ -226,11 +226,21 @@ int main() {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_at_turn = atoi(colon + 1);
-                    mvwprintw(win_server, 2, 2, "client position: %i", client_position);
+                    mvwprintw(win_server, 0, 2, " client position: %i ", client_position);
                     wrefresh(win_server);
 
                     if (player_at_turn == client_position) {
                         turn = 1;
+                    }
+                }
+            }
+
+            else if (strstr(recv_buffer, "PASS")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_passed = atoi(colon + 1);
+                    if (player_who_passed != client_position) {
+
                     }
                 }
             }
@@ -350,13 +360,14 @@ int main() {
 
         if (turn) {
             if (!has_played) {
-                mvwprintw(win_server, 4, 2, "Your turn.");
+                char *msg = "Your turn.";
+                mvwprintw(win_server, line_count, 2, "%s", msg);
             } else {
                 int x_pos = 14; // starting x pos after "you has_played: "
 
                 if (any_selected) {
                     mvwhline(win_server, 4, 2, ' ', line_x - 2);
-                    mvwprintw(win_server, 4, 2, "You played: ");
+                    mvwprintw(win_server, line_count, 2, "You played: ");
                     wrefresh(win_server);
                     for (int i = 0; i < played_hand_size; i++) {
                         char *msg = return_card(played_hand[i]);
@@ -366,7 +377,7 @@ int main() {
                         else if (strstr(msg, KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
                         else if (strstr(msg, HERZ)) wattron(win_server, COLOR_PAIR(RED));
 
-                        mvwprintw(win_server, 4, x_pos, "%s", msg);
+                        mvwprintw(win_server, line_count, x_pos, "%s", msg);
                         x_pos += (int) strlen(msg);
 
                         wattroff(win_server, COLOR_PAIR(WHITE));
@@ -375,10 +386,13 @@ int main() {
                         wattroff(win_server, COLOR_PAIR(RED));
                         free(msg);
                     }
+                    line_count += 2;
                 } else {
-                    mvwprintw(win_server, 4, 2, "You passed.");
-                    char buf[10];
-                    snprintf(buf, strlen(buf), "%i", client_position);
+                    mvwprintw(win_server, line_count, 2, "You passed.");
+                    line_count += 2;
+
+                    char buf[10] = { 0 };
+                    snprintf(buf, sizeof(buf), "%i", client_position);
                     send_message(sock, "PASS", buf);
                 }
 
@@ -389,7 +403,6 @@ int main() {
                 turn = 0;
             }
         }
-
         wrefresh(win_server);
         // --- END GAME LOGIC ---
 

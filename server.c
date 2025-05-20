@@ -122,7 +122,7 @@ void *io_thread(void* arg) {
             // send that to all clients
             for (int i = 0; i < waiting_player_count; i++) {
                 if(client_sockets[i] != -1) {
-                    printf("Sent to %s: ", players[i]);
+                    printf("Sent to %s: PLAYERS:%s\n", players[i], player_list_cn);
                     send_message(client_sockets[i], "PLAYERS", player_list_cn);
                 }
             }
@@ -131,7 +131,8 @@ void *io_thread(void* arg) {
                 if (client_sockets[i] != -1) {
                     char buffer[4];
                     snprintf(buffer, 4, "%i", player_count);
-                    printf("Sent to %s: ", players[i]);
+
+                    printf("Sent to %s: AMOUNT:%s\n", players[i], buffer);
                     send_message(client_sockets[i], "AMOUNT", buffer);
                 }
             }
@@ -155,7 +156,8 @@ void *io_thread(void* arg) {
                         }
                         strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
                     }
-                    printf("Sent to %s: ", players[i]);
+
+                    printf("Sent to %s: DEAL:%s\n", players[i], deal_msg);
                     send_message(client_sockets[i], "DEAL", deal_msg);
                 }
                 printf("Game started with all players.\n");
@@ -166,7 +168,7 @@ void *io_thread(void* arg) {
 
             if (has_dealt) {
                 for (int i = 0; i < player_count; i++) {
-                    printf("Sent to %s: ", players[i]);
+                    printf("Sent to %s: TURN:%s\n", players[i], "0");
                     send_message(client_sockets[i], "TURN", "0");
                 }
             }
@@ -202,6 +204,7 @@ void *io_thread(void* arg) {
                     // send updated player list to client (with removed names)
                     for (int j = 0; j < player_count; j++) {
                         if (client_sockets[j] != -1) {
+                            printf("Sent to %s: PLAYERS:%s\n", players[j], player_list_dc);
                             send_message(client_sockets[j], "PLAYERS", player_list_dc);
                         }
                     }
@@ -278,6 +281,7 @@ int main() {
     }
 
     // game loop
+    int passed_players[4] = { 0 };
     while(running) {
         pthread_mutex_lock(&queue_lock);
 
@@ -298,10 +302,29 @@ int main() {
         while ((entry = STAILQ_FIRST(&message_queue)) != NULL) {
             printf("Received: %s\n", entry->message.buffer);
 
-            // broadcast to other players
-            for (int i = 0; i < max_players; i++) {
-                if (client_sockets[i] != -1 && client_sockets[i] != entry->message.client_fd) {
-                    write(client_sockets[i], entry->message.buffer, strlen(entry->message.buffer));
+            if (strstr(entry->message.buffer, "PASS")) {
+                char* colon = strchr(entry->message.buffer, ':');
+                if (colon) {
+                    int player_at_turn = atoi(colon + 1);
+
+                    passed_players[player_at_turn] = 1;
+                    printf("{ %i, %i, %i, %i }", passed_players[0], passed_players[1], passed_players[2], passed_players[3]);
+
+                    for (int i = 0; i < max_players; i++) {
+                        if (passed_players[i] != 1) {
+                            player_at_turn = i;
+                            break;
+                        }
+                    }
+
+                    for (int i = 0; i < max_players; i++) {
+                        if (client_sockets[i] != -1) {
+                            char msg[10] = { 0 };
+                            snprintf(msg, sizeof(msg), "%i", player_at_turn);
+                            printf("Sent to %s: TURN:%s\n", players[i], msg);
+                            send_message(client_sockets[i], "TURN", msg);
+                        }
+                    }
                 }
             }
 
