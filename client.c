@@ -254,23 +254,23 @@ int main() {
 
     // ---- BEGIN VARIABLE DECLARATION ----
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
-    int max_players;
-
+    int player_count;
     int all_players_connected = 0;
     int any_selected = 0;           // check if any cards are even selected
     int choice;                     // choice = key input
-    int flag = 0;                   // flag = check if animation already played
+    int animation_flag = 0;         // animation_flag = check if animation already played
     int hand_size = HAND_SIZE;      // max win_hand size (always 13, even if fewer than 4 players are connected)
-    int highlight = 0;              // highlight flag for selected card
+    int highlight = 0;              // highlight animation_flag for selected card
     int played = 0;                 // keep track if it's your turn or not
     int played_hand_size = 0;
-    static char recv_buffer[4096] = { 0 };          // global buffer to collect data
-    static size_t recv_buffer_len = 0;              // track buffer length
-    int selected_cards[hand_size];                  // array of flags - checks if card at index is highlighted to be played
-    int sock = setup_connection(8, players, &max_players); // setup client connection to server
-    int total_len;                                  // total length of win_hand (used for centering)
-    int turn = 1;                                   // turn check flag
+    static char recv_buffer[4096] = { 0 };  // global buffer to collect data
+    static size_t recv_buffer_len = 0;      // track buffer length
+    int selected_cards[hand_size];          // array of flags - checks if card at index is highlighted to be played
+    int sock = setup_connection(8, players, &player_count);  // setup client connection to server
+    int total_len;                                                  // total length of win_hand (used for centering)
+    int turn = 1;                                                   // turn check animation_flag
     int waiting_dots_index = 0;
+    int game_start_flag = 1;
 
     Card player_deck[hand_size]; // current win_hand
     Card played_hand[hand_size]; // played win_hand (on turn)
@@ -303,12 +303,19 @@ int main() {
     int line_x = 3 * (width / 4); // 3/4th of the screen
     mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
 
+    for (int i = 1; i < height - 1; i++) {
+        mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
+    }
+
+    for (int i = line_x + 2; i < width - 2; i++) {
+        mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
+    }
     for (int i = 0; i < NUM_PLAYERS; i++) {
         if(strlen(players[i]) > 0) {
             mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
-            player_count++;
+            waiting_player_count++;
         }
-        all_players_connected = (player_count == max_players);  // check if with current connection, enough players are connected
+        all_players_connected = (waiting_player_count == player_count);  // check if with current connection, enough players are connected
     }
 
     wrefresh(win_user);
@@ -345,19 +352,19 @@ int main() {
             if (strstr(recv_buffer, "PLAYERS:")) {
                 if (parse_names(recv_buffer, players)) { // only update if players changed
 
-                    player_count = 0;
-                    for (int i = 0; i < max_players; i++) {
-                        if (strlen(players[i]) > 0) player_count++; // calculate new player count
+                    waiting_player_count = 0;
+                    for (int i = 0; i < player_count; i++) {
+                        if (strlen(players[i]) > 0) waiting_player_count++; // calculate new player count
                     }
                 }
 
                 for (int i = line_x + 2; i < width - 2; i++) {
-                    for (int j = 0; j < max_players; j++) {
+                    for (int j = 0; j < player_count; j++) {
                         mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
                         mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
                     }
                 }
-                all_players_connected = (player_count == max_players);
+                all_players_connected = (waiting_player_count == player_count);
                 wnoutrefresh(win_user); // queue for refresh
 
             } else if (strstr(recv_buffer, "DEAL:")) {
@@ -369,13 +376,13 @@ int main() {
                     token = strtok(NULL, ";");
                 }
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
-                flag = 0; // enable animation
+                animation_flag = 0; // enable animation
             }
 
             else if (strstr(recv_buffer, "AMOUNT:")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
-                    max_players = atoi(colon + 1);
+                    player_count = atoi(colon + 1);
                 }
             }
 
@@ -402,13 +409,14 @@ int main() {
             mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
         }
 
-        for (int i = 0; i < max_players; i++) {
+        for (int i = 0; i < player_count; i++) {
             if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
         }
 
         // waiting room
         if (!all_players_connected) {
-            flag = 0; // ensure animation plays again when reconnected
+            game_start_flag = 1;
+            animation_flag = 0; // ensure animation plays again when reconnected
             char* waiting_msg = " Waiting for players to connect";
             char* dots[] = { " ", ". ", ".. ", "... "};
             int num_frames = 4;
@@ -418,7 +426,7 @@ int main() {
 
             mvwhline(win_hand, win_height / 2, 2, ' ', win_width - 10);
             mvwprintw(win_hand, win_height / 2, (int) (win_width - strlen(full_msg) + (waiting_dots_index % num_frames) - 1) / 2, "%s", full_msg);
-            mvwprintw(win_hand, win_height / 2 + 1, (win_width - 8) / 2, "(%d/%d)", player_count, max_players);
+            mvwprintw(win_hand, win_height / 2 + 1, (win_width - 8) / 2, "(%d/%d)", waiting_player_count, player_count);
 
             waiting_dots_index++;
             wrefresh(win_hand);
@@ -428,8 +436,18 @@ int main() {
             continue;
         }
 
+        if (game_start_flag) {
+            werase(win_hand);
+            box(win_hand, 0, 0);
+            char* game_start_msg = "All players connected. Game start!";
+            mvwprintw(win_hand, win_height / 2, (int) (win_width - strlen(game_start_msg)) / 2, "%s", game_start_msg);
+            wrefresh(win_hand);
+            usleep(2000 * 1000);
+            game_start_flag = 0;
+        }
+
         // -- animation begin --
-        if (!flag) {
+        if (!animation_flag) {
             werase(win_hand);
             box(win_hand, 0, 0);
 
@@ -454,7 +472,7 @@ int main() {
                 wrefresh(win_user);
                 usleep(100 * 1000);
             }
-            flag = 1;
+            animation_flag = 1;
         }
         // -- animation end --
 

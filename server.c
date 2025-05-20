@@ -63,7 +63,7 @@ void *io_thread(void* arg) {
 
     Card (*hands)[HAND_SIZE] = args->hands;
     char (*players)[MAX_NAME_LENGTH] = args->players;
-    int max_players = args->max_players;
+    int player_count = args->max_players;
 
     while (running) {
 
@@ -73,7 +73,7 @@ void *io_thread(void* arg) {
 
         pthread_mutex_lock(&player_lock);
         // add all current sockets to set
-        for (int i = 0; i < max_players; i++) {
+        for (int i = 0; i < player_count; i++) {
             if (client_sockets[i] != -1) {
                 FD_SET(client_sockets[i], &readfds);
                 if (client_sockets[i] > max_fd) max_fd = client_sockets[i];
@@ -102,7 +102,7 @@ void *io_thread(void* arg) {
 
             pthread_mutex_lock(&player_lock);
             // copy entered names into players array
-            for (int i = 0; i < max_players; i++) {
+            for (int i = 0; i < player_count; i++) {
                 if (client_sockets[i] == -1) {
                     client_sockets[i] = new_socket;
                     memset(players[i], 0, sizeof(players[i]));
@@ -111,43 +111,43 @@ void *io_thread(void* arg) {
                 }
             }
 
-            player_count++;
-            printf("Player %s connected. (%d/%d)\n", name, player_count, max_players);
+            waiting_player_count++;
+            printf("Player %s connected. (%d/%d)\n", name, waiting_player_count, player_count);
 
 
             // comma seperated player list
             char player_list_cn[256] = { 0 };
-            for (int i = 0; i < max_players; i++) {
+            for (int i = 0; i < player_count; i++) {
                 if(client_sockets[i] != -1) {
                     strncat(player_list_cn, players[i], strlen(players[i]));
-                    if (i < player_count - 1) strncat(player_list_cn, ",", 2);
+                    if (i < waiting_player_count - 1) strncat(player_list_cn, ",", 2);
                 }
             }
             player_list_cn[strlen(player_list_cn)] = '\0';
 
             // send that to all clients
-            for (int i = 0; i < player_count; i++) {
+            for (int i = 0; i < waiting_player_count; i++) {
                 if(client_sockets[i] != -1) {
                     printf("Sent to %s: ", players[i]);
                     send_message(client_sockets[i], "PLAYERS", player_list_cn);
                 }
             }
 
-            for (int i = 0; i < player_count; i++) {
+            for (int i = 0; i < waiting_player_count; i++) {
                 if (client_sockets[i] != -1) {
                     char buffer[4];
-                    snprintf(buffer, 4, "%i", max_players);
+                    snprintf(buffer, 4, "%i", player_count);
                     printf("Sent to %s: ", players[i]);
                     send_message(client_sockets[i], "AMOUNT", buffer);
                 }
             }
 
-            if (player_count == max_players) {
+            if (waiting_player_count == player_count) {
                 Deck *deck = malloc(sizeof(*deck));
                 init_deck(deck);
                 shuffle_deck(deck);
 
-                for (int i = 0; i < max_players; i++) {
+                for (int i = 0; i < player_count; i++) {
                     char deal_msg[256] = { 0 };
                     for (int j = 0; j < HAND_SIZE; j++) {
                         hands[i][j] = deck->cards[HAND_SIZE * i + j];
@@ -175,7 +175,7 @@ void *io_thread(void* arg) {
 
         // check for disconnects
         pthread_mutex_lock(&player_lock);
-        for (int i = 0; i < max_players; i++) {
+        for (int i = 0; i < player_count; i++) {
 
             if (client_sockets[i] != -1 && FD_ISSET(client_sockets[i], &readfds)) {
 
@@ -183,23 +183,23 @@ void *io_thread(void* arg) {
                 ssize_t b_recv = recv(client_sockets[i], &buffer, 1, MSG_PEEK);
 
                 if (b_recv <= 0) {
-                    player_count--;
-                    printf("Player %s disconnected. (%d/%d)\n", players[i], player_count, max_players);
+                    waiting_player_count--;
+                    printf("Player %s disconnected. (%d/%d)\n", players[i], waiting_player_count, player_count);
                     close(client_sockets[i]);
                     client_sockets[i] = -1;
 
                     // make updated player lists (after disconnects)
                     char player_list_dc[256] = { 0 };
-                    for (int j = 0; j < max_players; j++) {
+                    for (int j = 0; j < player_count; j++) {
                         if (client_sockets[j] != -1) { // only include connected players
                             strncat(player_list_dc, players[j], strlen(players[j]));
-                            if (j < player_count - 1) strncat(player_list_dc, ",", 2);
+                            if (j < waiting_player_count - 1) strncat(player_list_dc, ",", 2);
                         }
                     }
                     player_list_dc[strlen(player_list_dc)] = '\0';
 
                     // send updated player list to client (with removed names)
-                    for (int j = 0; j < max_players; j++) {
+                    for (int j = 0; j < player_count; j++) {
                         if (client_sockets[j] != -1) {
                             send_message(client_sockets[j], "PLAYERS", player_list_dc);
                         }
@@ -316,7 +316,7 @@ int main() {
             pthread_cond_wait(&queue_cond, &queue_lock);
         }
 
-        if (player_count < max_players) {
+        if (waiting_player_count < max_players) {
             printf("Server closed!\n");
             pthread_join(thread_io, NULL);
             close(server_fd);

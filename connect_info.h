@@ -9,7 +9,7 @@
 #define DEFAULT_IP "127.0.0.1"
 #define MAX_NAME_LENGTH 30
 
-int player_count = 0;
+int waiting_player_count = 0;
 
 
 #endif //C_CONNECT_INFO_H
