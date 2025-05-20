@@ -8,10 +8,10 @@
 
 void init_deck(Deck *deck) {
     int i = 0;
-    for (int j = 0; j < NUM_SUITS; j++) {
-        for (int k = 0; k < HAND_SIZE; k++) {
-            deck->cards[i].suit = j;
-            deck->cards[i].rank = k;
+    for (Suit s = PIK; s <= HERZ; s++) {
+        for (Rank r = DREI; r <= ZWEI; r++) {
+            deck->cards[i].suit = s;
+            deck->cards[i].rank = r;
             i++;
         }
     }
