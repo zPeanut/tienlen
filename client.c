@@ -39,6 +39,12 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
     }
 }
 
+void draw_players(char players[][MAX_NAME_LENGTH], char* client_name, int index, int line_x, WINDOW *win) {
+    if (strcmp(players[index], client_name) == 0) wattron(win, COLOR_PAIR(CYAN));
+    mvwprintw(win, 5 + index * 2, line_x + 2, "%s", players[index]);
+    wattroff(win, COLOR_PAIR(CYAN));
+}
+
 int setup_ncurses_ui() {
     initscr();
     start_color();
@@ -59,6 +65,7 @@ int setup_ncurses_ui() {
     init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);       // clubs
     init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);   // diamonds
     init_pair(RED, COLOR_RED, COLOR_BLACK);         // hearts
+    init_pair(CYAN, 14, COLOR_BLACK);       // connected user
 
     return 0;
 }
@@ -69,26 +76,28 @@ int main() {
 
     // ---- BEGIN VARIABLE DECLARATION ----
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
-    int player_count;
     int all_players_connected = 0;
     int any_selected = 0;           // check if any cards are even selected
+    int animation_flag = 0;         // animation_flag = check if animation already has_played
     int choice;                     // choice = key input
-    int animation_flag = 0;         // animation_flag = check if animation already played
+    int client_position = 0;        // get current player array position (used for turns and highlight)
+    int game_start_flag = 1;
     int hand_size = HAND_SIZE;      // max win_hand size (always 13, even if fewer than 4 players are connected)
+    int has_played = 0;             // keep track if it's your turn or not
     int highlight = 0;              // highlight animation_flag for selected card
-    int played = 0;                 // keep track if it's your turn or not
+    char* name;
     int played_hand_size = 0;
+    int player_count;
     static char recv_buffer[4096] = { 0 };  // global buffer to collect data
     static size_t recv_buffer_len = 0;      // track buffer length
-    int selected_cards[hand_size];          // array of flags - checks if card at index is highlighted to be played
-    int sock = setup_connection(8, players, &player_count);  // setup client connection to server
-    int total_len;                                                  // total length of win_hand (used for centering)
-    int turn = 1;                                                   // turn check animation_flag
+    int selected_cards[hand_size];          // array of flags - checks if card at index is highlighted to be has_played
+    int sock = setup_connection(8, players, &player_count, &name);  // setup client connection to server
+    int total_len;                          // total length of win_hand (used for centering)
+    int turn = 0;                           // turn check animation_flag
     int waiting_dots_index = 0;
-    int game_start_flag = 1;
 
     Card player_deck[hand_size]; // current win_hand
-    Card played_hand[hand_size]; // played win_hand (on turn)
+    Card played_hand[hand_size]; // has_played win_hand (on turn)
     memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_server are inside it
     // ---- END VARIABLE DECLARATION ----
 
@@ -116,7 +125,7 @@ int main() {
 
     // initial rendering of userlist
     int line_x = 3 * (width / 4); // 3/4th of the screen
-    mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
+    mvwprintw(win_user, 2, line_x + 2, "Connected Users: %s", name);
 
     for (int i = 1; i < height - 1; i++) {
         mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
@@ -127,7 +136,7 @@ int main() {
     }
     for (int i = 0; i < NUM_PLAYERS; i++) {
         if(strlen(players[i]) > 0) {
-            mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+            draw_players(&players[i], name, i, line_x, win_user);
             waiting_player_count++;
         }
         all_players_connected = (waiting_player_count == player_count);  // check if with current connection, enough players are connected
@@ -164,7 +173,7 @@ int main() {
             *parsed_message_end = '\0';
 
             // individual message parsing
-            if (strstr(recv_buffer, "PLAYERS:")) {
+            if (strstr(recv_buffer, "PLAYERS")) {
                 if (parse_names(recv_buffer, players)) { // only update if players changed
 
                     waiting_player_count = 0;
@@ -176,13 +185,13 @@ int main() {
                 for (int i = line_x + 2; i < width - 2; i++) {
                     for (int j = 0; j < player_count; j++) {
                         mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
-                        mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+                        draw_players(players, name, i, line_x, win_user);
                     }
                 }
                 all_players_connected = (waiting_player_count == player_count);
                 wnoutrefresh(win_user); // queue for refresh
 
-            } else if (strstr(recv_buffer, "DEAL:")) {
+            } else if (strstr(recv_buffer, "DEAL")) {
                 memset(selected_cards, 0, sizeof(selected_cards)); // reset
                 char *token = strtok(recv_buffer + 5, ";"); // skip prefix
 
@@ -198,10 +207,31 @@ int main() {
                 animation_flag = 0; // enable animation
             }
 
-            else if (strstr(recv_buffer, "AMOUNT:")) {
+            else if (strstr(recv_buffer, "AMOUNT")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     player_count = atoi(colon + 1);
+                }
+            }
+
+            else if (strstr(recv_buffer, "TURN")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_at_turn = atoi(colon + 1);
+                    int client_position = 0; // get current position in player array
+
+                    for (int i = 0; i < NUM_PLAYERS; i++) {
+                        if (strcmp(players[i], name) == 0) {
+                            client_position = i;
+                            mvwprintw(win_server, 2, 2, "client position: %i / i: %i", client_position, i);
+                            wrefresh(win_server);
+                            break;
+                        }
+                    }
+
+                    if (player_at_turn == client_position) {
+                        turn = 1;
+                    }
                 }
             }
 
@@ -229,7 +259,9 @@ int main() {
         }
 
         for (int i = 0; i < player_count; i++) {
-            if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
+            if (strlen(players[i]) > 0) {
+                draw_players(players, name, i, line_x, win_user);
+            }
         }
 
         // waiting room
@@ -256,6 +288,7 @@ int main() {
         }
 
         if (game_start_flag) {
+            wrefresh(win_user);
             werase(win_hand);
             box(win_hand, 0, 0);
             char* game_start_msg = "All players connected. Game start!";
@@ -312,42 +345,47 @@ int main() {
 
 
         // --- BEGIN GAME LOGIC ---
-        if (played && turn) {
-            int x_pos = 14; // starting x pos after "you played: "
-            mvwhline(win_server, 4, 2, ' ', line_x - 2);
 
-            if (any_selected) {
-                mvwprintw(win_server, 4, 2, "You played: ");
-                for (int i = 0; i < played_hand_size; i++) {
-                    char* msg = return_card(played_hand[i]);
+        if (turn) {
+            mvwprintw(win_server, 4, 2, "Your turn.");
 
-                    if (strstr(msg, PIK)) wattron(win_server, COLOR_PAIR(WHITE));
-                    else if (strstr(msg, KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
-                    else if (strstr(msg, KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
-                    else if (strstr(msg, HERZ)) wattron(win_server, COLOR_PAIR(RED));
+            if (has_played) {
+                int x_pos = 14; // starting x pos after "you has_played: "
+                mvwhline(win_server, 4, 2, ' ', line_x - 2);
 
-                    mvwprintw(win_server, 4, x_pos, "%s", msg);
-                    x_pos += (int) strlen(msg);
+                if (any_selected) {
+                    mvwprintw(win_server, 4, 2, "You played: ");
+                    for (int i = 0; i < played_hand_size; i++) {
+                        char* msg = return_card(played_hand[i]);
 
-                    wattroff(win_server, COLOR_PAIR(WHITE));
-                    wattroff(win_server, COLOR_PAIR(BLUE));
-                    wattroff(win_server, COLOR_PAIR(YELLOW));
-                    wattroff(win_server, COLOR_PAIR(RED));
+                        if (strstr(msg, PIK)) wattron(win_server, COLOR_PAIR(WHITE));
+                        else if (strstr(msg, KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
+                        else if (strstr(msg, KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
+                        else if (strstr(msg, HERZ)) wattron(win_server, COLOR_PAIR(RED));
 
-                    free(msg);
+                        mvwprintw(win_server, 4, x_pos, "%s", msg);
+                        x_pos += (int) strlen(msg);
+
+                        wattroff(win_server, COLOR_PAIR(WHITE));
+                        wattroff(win_server, COLOR_PAIR(BLUE));
+                        wattroff(win_server, COLOR_PAIR(YELLOW));
+                        wattroff(win_server, COLOR_PAIR(RED));
+
+                        free(msg);
+                    }
+
+                } else {
+                    mvwprintw(win_server, 4, 2, "You passed.");
+                    turn = 0;
                 }
 
-            } else {
-                mvwprintw(win_server, 4, 2, "You passed.");
-                turn = 0;
+                memset(played_hand, 0, hand_size * sizeof(int));
+                played_hand_size = 0;
+                has_played = 0;
+                any_selected = 0;
             }
-
-            memset(played_hand, 0, hand_size * sizeof(int));
-            played_hand_size = 0;
-            played = 0;
-            any_selected = 0;
-            wrefresh(win_server);
         }
+        wrefresh(win_server);
         // --- END GAME LOGIC ---
 
 
@@ -385,7 +423,7 @@ int main() {
                             }
                             selected_cards[i] = 0;
                         }
-                        played = 1;
+                        has_played = 1;
                         hand_size = new_index;
                         if (highlight > new_index) highlight = new_index - 1;
                         memset(selected_cards, 0, hand_size * sizeof(int));
@@ -404,6 +442,7 @@ int main() {
     move(0,0);
     endwin();
     close(sock);
+    free(name);
     printf("Server closed!\n");
     return 0;
 }

@@ -58,6 +58,7 @@ void *io_thread(void* arg) {
     fd_set readfds;
     int max_fd;
     struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };
+    int has_dealt = 0;
 
     thread_args *args = (thread_args *) arg;
 
@@ -151,7 +152,6 @@ void *io_thread(void* arg) {
                     char deal_msg[256] = { 0 };
                     for (int j = 0; j < HAND_SIZE; j++) {
                         hands[i][j] = deck->cards[HAND_SIZE * i + j];
-
                         int suit = hands[i][j].suit;
                         int rank = hands[i][j].rank;
                         char card_str[10];
@@ -167,7 +167,15 @@ void *io_thread(void* arg) {
                 }
                 printf("Game started with all players.\n");
                 printf("Cards dealt.\n");
+                has_dealt = 1;
                 free(deck);
+            }
+
+            if (has_dealt) {
+                for (int i = 0; i < player_count; i++) {
+                    printf("Sent to %s: ", players[i]);
+                    send_message(client_sockets[i], "TURN", "0");
+                }
             }
 
             pthread_mutex_unlock(&player_lock);

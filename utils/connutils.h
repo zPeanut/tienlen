@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 30
 
 int connect_timeout(int socket, struct sockaddr *address, socklen_t address_length, int timeout);
-int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_players);
+int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_players, char** get_name);
 
 char* get_client_ip();
 int get_client_port();

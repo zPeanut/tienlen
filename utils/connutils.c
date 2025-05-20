@@ -58,7 +58,7 @@ int connect_timeout(int socket, struct sockaddr *address, socklen_t address_leng
     return 0;
 }
 
-int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_players) {
+int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_players, char** get_name) {
 
     char* ip = get_client_ip();
     int port = get_client_port();
@@ -80,6 +80,7 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_pla
 
     char* name = get_client_name();
     write(sock, name, strlen(name));
+    *get_name = name;
 
     // build initial userlist from server
     char recv_buffer[256] = { 0 };
@@ -102,7 +103,6 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_pla
     fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
 
     free(ip);
-    free(name);
     return sock;
 }
 

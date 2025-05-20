@@ -16,6 +16,7 @@
 #define BLUE 2
 #define YELLOW 3
 #define RED 4
+#define CYAN 5
 
 typedef enum {
     pik, kreuz, karo, herz
