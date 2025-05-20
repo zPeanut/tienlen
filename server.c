@@ -14,14 +14,13 @@
 #include <sys/queue.h>
 
 #include "cards.h"
+#include "connect_info.h"
 
-#define PORT 25565
-
-char players[NUM_PLAYERS][30];
+char players[NUM_PLAYERS][MAX_NAME_LENGTH];
 Card hands[NUM_PLAYERS][HAND_SIZE];
-int running = 1;
-int player_count = 0;
+
 int client_sockets[NUM_PLAYERS];
+int running = 1;
 int server_fd;
 
 typedef struct {
@@ -224,8 +223,8 @@ int main() {
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
-    printf("Port: %d\n", PORT);
+    address.sin_port = htons(DEFAULT_PORT);
+    printf("Port: %d\n", DEFAULT_PORT);
 
     int b = bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     if (b != 0) {

@@ -14,23 +14,7 @@
 #include <ncurses.h>
 
 #include "cards.h"
-
-#define PIK "♠"
-#define KREUZ "♣"
-#define KARO "♦"
-#define HERZ "♥"
-
-#define YELLOW 99
-#define WHITE 98
-#define BLUE 97
-#define RED 96
-
-#define MAX_NAME_LENGTH 30
-
-#define DEFAULT_IP "127.0.0.1"
-#define DEFAULT_PORT 25565
-
-int player_count = 0;
+#include "connect_info.h"
 
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards) {
     for (int i = 0; i < loop_limit; i++) {
@@ -262,7 +246,7 @@ int main() {
     setlocale(LC_ALL, "");
 
     // ---- BEGIN VARIABLE DECLARATION ----
-    char players[NUM_PLAYERS][MAX_NAME_LENGTH] = {0};
+    char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
 
     int all_players_connected = 0;
     int any_selected = 0;           // check if any cards are even selected

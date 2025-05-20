@@ -7,8 +7,18 @@
 #define NUM_PLAYERS 4
 #define HAND_SIZE 13
 
+#define PIK "♠"
+#define KREUZ "♣"
+#define KARO "♦"
+#define HERZ "♥"
+
+#define WHITE 1
+#define BLUE 2
+#define YELLOW 3
+#define RED 4
+
 typedef enum {
-    PIK, KREUZ, KARO, HERZ
+    pik, kreuz, karo, herz
 } Suit;
 
 typedef enum {
