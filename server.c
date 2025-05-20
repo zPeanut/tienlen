@@ -13,8 +13,7 @@
 #include <signal.h>
 #include <sys/queue.h>
 
-#include "cards.h"
-#include "connect_info.h"
+#include "utils/connutils.h"
 
 int client_sockets[NUM_PLAYERS];
 int running = 1;
@@ -222,40 +221,6 @@ void *io_thread(void* arg) {
         pthread_mutex_unlock(&player_lock);
     }
     return NULL;
-}
-
-int get_max_players() {
-    char max_amount[10] = { 0 };
-    int max_players;
-    do {
-        printf("Amount of players:\n");
-        printf("-> ");
-        fgets(max_amount, 10, stdin);
-
-        max_amount[strcspn(max_amount, "\n")] = 0;
-        max_players = atoi(max_amount);
-
-        if (max_amount[strspn(max_amount, "0123456789")]) {
-            printf("Not a number!\n");
-            continue;
-        }
-
-        if (max_players < 2) {
-            printf("Too few players! Need atleast 2.\n");
-            continue;
-        }
-
-        if (max_players > 4) {
-            printf("Too many players!\n");
-            continue;
-        }
-    } while(max_amount[0] == 0 || max_players > 4 || max_players < 2 || max_amount[strspn(max_amount, "0123456789")]);
-
-    if (max_amount[0] == '\0') {
-        max_players = NUM_PLAYERS;
-    }
-
-    return max_players;
 }
 
 
