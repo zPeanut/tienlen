@@ -41,13 +41,6 @@ void handle_ctrlc(int signal) {
     exit(0);
 }
 
-void send_message(int fd, const char* type, const char* content) {
-    char buffer[256];
-    snprintf(buffer, sizeof(buffer), "%s:%s\n", type, content);
-    write(fd, buffer, strlen(buffer));
-    printf("%s\n", buffer);
-}
-
 typedef struct {
     char (*players)[MAX_NAME_LENGTH];
     Card (*hands)[HAND_SIZE];
@@ -214,16 +207,19 @@ void *io_thread(void* arg) {
                     }
                 } else {
                     // queue handler
-                    read(client_sockets[i], buffer, sizeof(buffer));
-                    buffer[b_recv] = '\0';
-                    MessageEntry *entry = malloc(sizeof(MessageEntry));
-                    entry->message.client_fd = client_sockets[i];
-                    strncpy(entry->message.buffer, buffer, sizeof(buffer));
+                    ssize_t bytes_read = read(client_sockets[i], buffer, sizeof(buffer) - 1); // -1 because of \0
+                    if (bytes_read > 0) {
+                        buffer[bytes_read] = '\0';
+                        MessageEntry *entry = malloc(sizeof(MessageEntry));
+                        entry->message.client_fd = client_sockets[i];
+                        strncpy(entry->message.buffer, buffer, sizeof(buffer));
 
-                    pthread_mutex_lock(&queue_lock);
-                    STAILQ_INSERT_TAIL(&message_queue, entry, entries);
-                    pthread_cond_signal(&queue_cond);
-                    pthread_mutex_unlock(&queue_lock);
+                        pthread_mutex_lock(&queue_lock);
+                        STAILQ_INSERT_TAIL(&message_queue, entry, entries);
+                        pthread_cond_signal(&queue_cond);
+                        pthread_mutex_unlock(&queue_lock);
+                    }
+
                 }
             }
         }

@@ -106,6 +106,12 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_pla
     return sock;
 }
 
+void send_message(int fd, const char* type, const char* content) {
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s:%s\n", type, content);
+    write(fd, buffer, strlen(buffer));
+}
+
 
 int parse_names(char* buffer, char players[NUM_PLAYERS][MAX_NAME_LENGTH]) {
     static char prev_players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };

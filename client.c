@@ -123,6 +123,14 @@ int main() {
     int win_height, win_width;
     getmaxyx(win_hand, win_height, win_width);
 
+    // calculate client position
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        if (strcmp(players[i], name) == 0) {
+            client_position = i;
+            break;
+        }
+    }
+
     // initial rendering of userlist
     int line_x = 3 * (width / 4); // 3/4th of the screen
     mvwprintw(win_user, 2, line_x + 2, "Connected Users: %s", name);
@@ -218,16 +226,8 @@ int main() {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_at_turn = atoi(colon + 1);
-                    int client_position = 0; // get current position in player array
-
-                    for (int i = 0; i < NUM_PLAYERS; i++) {
-                        if (strcmp(players[i], name) == 0) {
-                            client_position = i;
-                            mvwprintw(win_server, 2, 2, "client position: %i / i: %i", client_position, i);
-                            wrefresh(win_server);
-                            break;
-                        }
-                    }
+                    mvwprintw(win_server, 2, 2, "client position: %i", client_position);
+                    wrefresh(win_server);
 
                     if (player_at_turn == client_position) {
                         turn = 1;
@@ -289,12 +289,14 @@ int main() {
 
         if (game_start_flag) {
             wrefresh(win_user);
+
             werase(win_hand);
             box(win_hand, 0, 0);
+
             char* game_start_msg = "All players connected. Game start!";
             mvwprintw(win_hand, win_height / 2, (int) (win_width - strlen(game_start_msg)) / 2, "%s", game_start_msg);
             wrefresh(win_hand);
-            usleep(2000 * 1000);
+            // usleep(2000 * 1000); TODO: add this back on prod
             game_start_flag = 0;
         }
 
@@ -347,16 +349,17 @@ int main() {
         // --- BEGIN GAME LOGIC ---
 
         if (turn) {
-            mvwprintw(win_server, 4, 2, "Your turn.");
-
-            if (has_played) {
+            if (!has_played) {
+                mvwprintw(win_server, 4, 2, "Your turn.");
+            } else {
                 int x_pos = 14; // starting x pos after "you has_played: "
-                mvwhline(win_server, 4, 2, ' ', line_x - 2);
 
                 if (any_selected) {
+                    mvwhline(win_server, 4, 2, ' ', line_x - 2);
                     mvwprintw(win_server, 4, 2, "You played: ");
+                    wrefresh(win_server);
                     for (int i = 0; i < played_hand_size; i++) {
-                        char* msg = return_card(played_hand[i]);
+                        char *msg = return_card(played_hand[i]);
 
                         if (strstr(msg, PIK)) wattron(win_server, COLOR_PAIR(WHITE));
                         else if (strstr(msg, KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
@@ -370,21 +373,23 @@ int main() {
                         wattroff(win_server, COLOR_PAIR(BLUE));
                         wattroff(win_server, COLOR_PAIR(YELLOW));
                         wattroff(win_server, COLOR_PAIR(RED));
-
                         free(msg);
                     }
-
                 } else {
                     mvwprintw(win_server, 4, 2, "You passed.");
-                    turn = 0;
+                    char buf[10];
+                    snprintf(buf, strlen(buf), "%i", client_position);
+                    send_message(sock, "PASS", buf);
                 }
 
                 memset(played_hand, 0, hand_size * sizeof(int));
                 played_hand_size = 0;
                 has_played = 0;
                 any_selected = 0;
+                turn = 0;
             }
         }
+
         wrefresh(win_server);
         // --- END GAME LOGIC ---
 
