@@ -372,7 +372,7 @@ int main() {
                 char *token = strtok(recv_buffer + 5, ";"); // skip prefix
 
                 for (int i = 0; i < hand_size && token; i++) {
-                    sscanf(token, "%d,%d", (int *) &player_deck[i].suit, (int *) &player_deck[i].rank);
+                    sscanf(token, "%d,%d", (Suit *) &player_deck[i].suit, (Rank *) &player_deck[i].rank);
                     token = strtok(NULL, ";");
                 }
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
