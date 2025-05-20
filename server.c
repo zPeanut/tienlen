@@ -18,6 +18,7 @@
 int client_sockets[NUM_PLAYERS];
 int running = 1;
 int server_fd;
+int waiting_player_count = 0;
 
 typedef struct {
     int client_fd;

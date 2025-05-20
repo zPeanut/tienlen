@@ -6,14 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
 #include <locale.h>
-#include <errno.h>
 #include <ncurses.h>
 
 #include "utils/connutils.h"
+
+int waiting_player_count = 0;
 
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards) {
     for (int i = 0; i < loop_limit; i++) {
