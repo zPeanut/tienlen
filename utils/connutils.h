@@ -5,7 +5,7 @@
 #ifndef C_CONNUTILS_H
 #define C_CONNUTILS_H
 
-#include "../cards.h"
+#include "cards.h"
 
 #define DEFAULT_PORT 25565
 #define DEFAULT_IP "127.0.0.1"
