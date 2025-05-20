@@ -111,9 +111,9 @@ void *io_thread(void* arg) {
                 }
             }
 
-
             player_count++;
             printf("Player %s connected. (%d/%d)\n", name, player_count, max_players);
+
 
             // comma seperated player list
             char player_list_cn[256] = { 0 };
@@ -130,6 +130,15 @@ void *io_thread(void* arg) {
                 if(client_sockets[i] != -1) {
                     printf("Sent to %s: ", players[i]);
                     send_message(client_sockets[i], "PLAYERS", player_list_cn);
+                }
+            }
+
+            for (int i = 0; i < player_count; i++) {
+                if (client_sockets[i] != -1) {
+                    char buffer[4];
+                    snprintf(buffer, 4, "%i", max_players);
+                    printf("Sent to %s: ", players[i]);
+                    send_message(client_sockets[i], "AMOUNT", buffer);
                 }
             }
 
@@ -222,17 +231,25 @@ int get_max_players() {
         printf("Amount of players:\n");
         printf("-> ");
         fgets(max_amount, 10, stdin);
+
         max_amount[strcspn(max_amount, "\n")] = 0;
         max_players = atoi(max_amount);
+
         if (max_amount[strspn(max_amount, "0123456789")]) {
             printf("Not a number!\n");
             continue;
         }
+
+        if (max_players < 2) {
+            printf("Too few players! Need atleast 2.\n");
+            continue;
+        }
+
         if (max_players > 4) {
             printf("Too many players!\n");
             continue;
         }
-    } while(max_amount[0] == 0 || max_players > 4 || max_amount[strspn(max_amount, "0123456789")]);
+    } while(max_amount[0] == 0 || max_players > 4 || max_players < 2 || max_amount[strspn(max_amount, "0123456789")]);
 
     if (max_amount[0] == '\0') {
         max_players = NUM_PLAYERS;
@@ -243,7 +260,7 @@ int get_max_players() {
 
 
 int main() {
-    int max_players = NUM_PLAYERS;
+    int max_players;
     max_players = get_max_players();
 
     for (int i = 0; i < max_players; i++) {

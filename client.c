@@ -176,7 +176,7 @@ char* get_client_name() {
     return name;
 }
 
-int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
+int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_players) {
 
     char* ip = get_client_ip();
     int port = get_client_port();
@@ -207,6 +207,13 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH]) {
         // parse player names with comma
         memset(players, 0, sizeof(*players));
         parse_names(recv_buffer, players);
+    }
+
+    char get_max_player_buf[20] = { 0 };
+    read(sock, get_max_player_buf, sizeof(get_max_player_buf));
+    char* colon = strchr(get_max_player_buf, ':');
+    if (colon != NULL) {
+        *max_players = (atoi(colon + 1));
     }
 
     int flags = fcntl(sock, F_GETFL, 0);
@@ -247,6 +254,7 @@ int main() {
 
     // ---- BEGIN VARIABLE DECLARATION ----
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
+    int max_players;
 
     int all_players_connected = 0;
     int any_selected = 0;           // check if any cards are even selected
@@ -259,7 +267,7 @@ int main() {
     static char recv_buffer[4096] = { 0 };          // global buffer to collect data
     static size_t recv_buffer_len = 0;              // track buffer length
     int selected_cards[hand_size];                  // array of flags - checks if card at index is highlighted to be played
-    int sock = setup_connection(8, players); // setup client connection to server
+    int sock = setup_connection(8, players, &max_players); // setup client connection to server
     int total_len;                                  // total length of win_hand (used for centering)
     int turn = 1;                                   // turn check flag
     int waiting_dots_index = 0;
@@ -300,7 +308,7 @@ int main() {
             mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
             player_count++;
         }
-        all_players_connected = (player_count == NUM_PLAYERS);  // check if with current connection, enough players are connected
+        all_players_connected = (player_count == max_players);  // check if with current connection, enough players are connected
     }
 
     wrefresh(win_user);
@@ -338,18 +346,18 @@ int main() {
                 if (parse_names(recv_buffer, players)) { // only update if players changed
 
                     player_count = 0;
-                    for (int i = 0; i < NUM_PLAYERS; i++) {
+                    for (int i = 0; i < max_players; i++) {
                         if (strlen(players[i]) > 0) player_count++; // calculate new player count
                     }
                 }
 
                 for (int i = line_x + 2; i < width - 2; i++) {
-                    for (int j = 0; j < NUM_PLAYERS; j++) {
+                    for (int j = 0; j < max_players; j++) {
                         mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
                         mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
                     }
                 }
-                all_players_connected = (player_count == NUM_PLAYERS);
+                all_players_connected = (player_count == max_players);
                 wnoutrefresh(win_user); // queue for refresh
 
             } else if (strstr(recv_buffer, "DEAL:")) {
@@ -362,6 +370,13 @@ int main() {
                 }
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
                 flag = 0; // enable animation
+            }
+
+            else if (strstr(recv_buffer, "AMOUNT:")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    max_players = atoi(colon + 1);
+                }
             }
 
             // remove parsed message from buffer
@@ -387,7 +402,7 @@ int main() {
             mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
         }
 
-        for (int i = 0; i < NUM_PLAYERS; i++) {
+        for (int i = 0; i < max_players; i++) {
             if (strlen(players[i]) > 0) mvwprintw(win_user, 5 + i * 2, line_x + 2, "%s", players[i]);
         }
 
@@ -403,7 +418,7 @@ int main() {
 
             mvwhline(win_hand, win_height / 2, 2, ' ', win_width - 10);
             mvwprintw(win_hand, win_height / 2, (int) (win_width - strlen(full_msg) + (waiting_dots_index % num_frames) - 1) / 2, "%s", full_msg);
-            mvwprintw(win_hand, win_height / 2 + 1, (win_width - 8) / 2, "(%d/%d)", player_count, NUM_PLAYERS);
+            mvwprintw(win_hand, win_height / 2 + 1, (win_width - 8) / 2, "(%d/%d)", player_count, max_players);
 
             waiting_dots_index++;
             wrefresh(win_hand);
