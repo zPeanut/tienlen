@@ -17,10 +17,10 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
     for (int i = 0; i < loop_limit; i++) {
 
         char* s = return_card(player_deck[i]);
-        if (strstr(s, PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
-        if (strstr(s, KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
-        if (strstr(s, KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
-        if (strstr(s, HERZ) != NULL) wattron(win, COLOR_PAIR(RED));
+        if (strstr(s, S_PIK) != NULL) wattron(win, COLOR_PAIR(WHITE));
+        if (strstr(s, S_KREUZ) != NULL) wattron(win, COLOR_PAIR(BLUE));
+        if (strstr(s, S_KARO) != NULL) wattron(win, COLOR_PAIR(YELLOW));
+        if (strstr(s, S_HERZ) != NULL) wattron(win, COLOR_PAIR(RED));
         if (i == highlight) wattron(win, A_UNDERLINE);
         if (selected_cards[i]) wattron(win, (A_BLINK | A_REVERSE));
 
@@ -222,6 +222,18 @@ int main() {
                 }
             }
 
+            else if (strstr(recv_buffer, "PASS")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_passed = atoi(colon + 1);
+                    char msg[30];
+                    snprintf(msg, sizeof(msg), "Player %i has passed.", player_who_passed);
+                    mvwprintw(win_server, line_count, 2, "%s", msg);
+                    line_count += 2;
+                    wrefresh(win_server);
+                }
+            }
+
             else if (strstr(recv_buffer, "TURN")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
@@ -235,15 +247,7 @@ int main() {
                 }
             }
 
-            else if (strstr(recv_buffer, "PASS")) {
-                char* colon = strchr(recv_buffer, ':');
-                if (colon) {
-                    int player_who_passed = atoi(colon + 1);
-                    if (player_who_passed != client_position) {
 
-                    }
-                }
-            }
 
             // remove parsed message from buffer
             size_t remaining = recv_buffer_len - (parsed_message_end - recv_buffer + 1);
@@ -372,10 +376,10 @@ int main() {
                     for (int i = 0; i < played_hand_size; i++) {
                         char *msg = return_card(played_hand[i]);
 
-                        if (strstr(msg, PIK)) wattron(win_server, COLOR_PAIR(WHITE));
-                        else if (strstr(msg, KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
-                        else if (strstr(msg, KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
-                        else if (strstr(msg, HERZ)) wattron(win_server, COLOR_PAIR(RED));
+                        if (strstr(msg, S_PIK)) wattron(win_server, COLOR_PAIR(WHITE));
+                        else if (strstr(msg, S_KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
+                        else if (strstr(msg, S_KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
+                        else if (strstr(msg, S_HERZ)) wattron(win_server, COLOR_PAIR(RED));
 
                         mvwprintw(win_server, line_count, x_pos, "%s", msg);
                         x_pos += (int) strlen(msg);

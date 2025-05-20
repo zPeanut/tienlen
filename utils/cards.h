@@ -7,10 +7,10 @@
 #define NUM_PLAYERS 4
 #define HAND_SIZE 13
 
-#define PIK "♠"
-#define KREUZ "♣"
-#define KARO "♦"
-#define HERZ "♥"
+#define S_PIK "♠"
+#define S_KREUZ "♣"
+#define S_KARO "♦"
+#define S_HERZ "♥"
 
 #define WHITE 1
 #define BLUE 2
@@ -19,11 +19,11 @@
 #define CYAN 5
 
 typedef enum {
-    pik, kreuz, karo, herz
+    PIK, KREUZ, KARO, HERZ
 } Suit;
 
 typedef enum {
-    ZWEI, DREI, VIER, FÜNF, SECHS, SIEBEN, ACHT, NEUN, ZEHN, BUBE, DAME, KÖNIG, ASS
+    DREI, VIER, FÜNF, SECHS, SIEBEN, ACHT, NEUN, ZEHN, BUBE, DAME, KÖNIG, ASS, ZWEI
 } Rank;
 
 typedef struct {

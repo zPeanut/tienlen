@@ -142,10 +142,11 @@ void *io_thread(void* arg) {
                 init_deck(deck);
                 shuffle_deck(deck);
 
+                int deck_index = 0;
                 for (int i = 0; i < player_count; i++) {
                     char deal_msg[256] = { 0 };
                     for (int j = 0; j < HAND_SIZE; j++) {
-                        hands[i][j] = deck->cards[HAND_SIZE * i + j];
+                        hands[i][j] = deck->cards[deck_index++];
                         int suit = hands[i][j].suit;
                         int rank = hands[i][j].rank;
                         char card_str[10];
@@ -308,8 +309,18 @@ int main() {
                     int player_at_turn = atoi(colon + 1);
 
                     passed_players[player_at_turn] = 1;
-                    printf("{ %i, %i, %i, %i }", passed_players[0], passed_players[1], passed_players[2], passed_players[3]);
+                    printf("{ %i, %i, %i, %i }\n", passed_players[0], passed_players[1], passed_players[2], passed_players[3]);
 
+                    for (int i = 0; i < max_players; i++) {
+                        if (client_sockets[i] != -1 && i != player_at_turn) {
+                            char msg[10] = { 0 };
+                            snprintf(msg, sizeof(msg), "%i", player_at_turn);
+                            printf("Sent to %s: PASS:%s\n", players[i], msg);
+                            send_message(client_sockets[i], "PASS", msg);
+                        }
+                    }
+
+                    // select new player
                     for (int i = 0; i < max_players; i++) {
                         if (passed_players[i] != 1) {
                             player_at_turn = i;
