@@ -14,10 +14,10 @@
 
 int waiting_player_count = 0;
 
-
-
-void add_message(char (*messages)[]) {
-
+void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count, WINDOW *win) {
+    strncpy(messages[*line_count], buf, MAX_MESSAGE_LENGTH - 1);
+    messages[*line_count][MAX_MESSAGE_LENGTH - 1] = '\0';
+    (*line_count)++;
 }
 
 void clear_screen() {
@@ -29,20 +29,21 @@ int main() {
     setlocale(LC_ALL, "");
 
     // ---- BEGIN VARIABLE DECLARATION ----
-    char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
     int all_players_connected = 0;
-    int any_selected = 0;           // check if any cards are even selected
-    int animation_flag = 0;         // animation_flag = check if animation already has_played
-    int choice;                     // choice = key input
-    int client_position = 0;        // get current player array position (used for turns and highlight)
+    int any_selected = 0;                   // check if any cards are even selected
+    int animation_flag = 0;                 // animation_flag = check if animation already has_played
+    int choice;                             // choice = key input
+    int client_position = 0;                // get current player array position (used for turns and highlight)
+    char display[32][MAX_MESSAGE_LENGTH];  // 32 strings with max message length length
     int game_start_flag = 1;
-    int hand_size = HAND_SIZE;      // max win_hand size (always 13, even if fewer than 4 players are connected)
-    int has_played = 0;             // keep track if it's your turn or not
-    int highlight = 0;              // highlight animation_flag for selected card
-    int line_count = 2;             // line count for window
+    int hand_size = HAND_SIZE;              // max win_hand size (always 13, even if fewer than 4 players are connected)
+    int has_played = 0;                     // keep track if it's your turn or not
+    int highlight = 0;                      // highlight animation_flag for selected card
+    int line_count = 0;                     // line count for window
     char* name;
     int played_hand_size = 0;
     int player_count;
+    char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
     static char recv_buffer[4096] = { 0 };  // global buffer to collect data
     static size_t recv_buffer_len = 0;      // track buffer length
     int score[NUM_PLAYERS] = { 0 };         // track score on won round
@@ -177,17 +178,11 @@ int main() {
                     char msg[60];
                     if (client_position == player_who_won) {
                         snprintf(msg, sizeof(msg), "You won this hand!");
-                        mvwprintw(win_server, line_count, 2, "%s", msg);
-                        line_count += 2;
                     } else {
                         snprintf(msg, sizeof(msg), "%s has won this hand.", players[player_who_won]);
-                        mvwprintw(win_server, line_count, 2, "%s", msg);
-                        line_count += 2;
                     }
+                    add_message(display, msg, &line_count, win_server);
                 }
-
-                // TODO: add function to handle messages on screen
-
             }
 
             else if (strstr(recv_buffer, "PASS")) {
@@ -196,9 +191,7 @@ int main() {
                     int player_who_passed = atoi(colon + 1);
                     char msg[60];
                     snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
-                    mvwprintw(win_server, line_count, 2, "%s", msg);
-                    line_count += 2;
-                    wrefresh(win_server);
+                    add_message(display, msg, &line_count, win_server);
                 }
             }
 
@@ -210,19 +203,17 @@ int main() {
                     wrefresh(win_server);
 
                     if (player_at_turn == client_position) {
-                        turn = 1;
                         char *msg = "Your turn.";
-                        mvwprintw(win_server, line_count, 2, "%s", msg);
+                        add_message(display, msg, &line_count, win_server);
+
+                        turn = 1;
                     } else {
                         char msg[40] = { 0 };
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
-                        mvwprintw(win_server, line_count, 2, "%s", msg);
+                        add_message(display, msg, &line_count, win_server);
                     }
-                    line_count += 2;
                 }
             }
-
-
 
             // remove parsed message from buffer
             size_t remaining = recv_buffer_len - (parsed_message_end - recv_buffer + 1);
@@ -319,6 +310,12 @@ int main() {
 
         x = (win_width - total_len) / 2;
         draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
+
+
+        for (int i = 0; i < line_count; ++i) {
+            int y1 = i * 2 + 2; // +1 offset if box border exists
+            mvwprintw(win_server, y1, 2, "%s", display[i]);
+        }
         // --- END UI SECTION ---
 
 
@@ -326,12 +323,14 @@ int main() {
 
         if (turn) {
             if (has_played) {
-                int x_pos = 14; // starting x pos after "you has_played: "
+                char* display_msg = "";
 
                 if (any_selected) {
+
                     mvwhline(win_server, 4, 2, ' ', line_x - 2);
-                    mvwprintw(win_server, line_count, 2, "You played: ");
-                    wrefresh(win_server);
+                    char* display_msg_1 = "You played: ";
+                    strncat(display_msg, display_msg_1, strlen(display_msg_1));
+
                     for (int i = 0; i < played_hand_size; i++) {
                         char *msg = return_card(played_hand[i]);
 
@@ -340,8 +339,7 @@ int main() {
                         else if (strstr(msg, S_KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
                         else if (strstr(msg, S_HERZ)) wattron(win_server, COLOR_PAIR(RED));
 
-                        mvwprintw(win_server, line_count, x_pos, "%s", msg);
-                        x_pos += (int) strlen(msg);
+                        strcat(display_msg, msg);
 
                         wattroff(win_server, COLOR_PAIR(WHITE));
                         wattroff(win_server, COLOR_PAIR(BLUE));
@@ -349,10 +347,11 @@ int main() {
                         wattroff(win_server, COLOR_PAIR(RED));
                         free(msg);
                     }
-                    line_count += 2;
+                    display_msg[strlen(display_msg)] = '\0';
+                    add_message(display, display_msg, &line_count, win_server);
                 } else {
-                    mvwprintw(win_server, line_count, 2, "You passed.");
-                    line_count += 2;
+
+                    add_message(display, "You passed.", &line_count, win_server);
 
                     char buf[10] = { 0 };
                     snprintf(buf, sizeof(buf), "%i", client_position);

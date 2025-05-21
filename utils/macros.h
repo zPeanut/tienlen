@@ -6,6 +6,7 @@
 #define TIENLEN_MACROS_H
 
 #define MAX_NAME_LENGTH 30
+#define MAX_MESSAGE_LENGTH 60
 
 #define DEFAULT_PORT 25565
 #define DEFAULT_IP "127.0.0.1"
