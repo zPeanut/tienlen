@@ -317,7 +317,18 @@ int main() {
 
         for (int i = 0; i < line_count; ++i) {
             int y1 = i * 2 + 2; // +1 offset if box border exists
+
+            if (strstr(display[i], S_PIK)) wattron(win_server, COLOR_PAIR(WHITE));
+            else if (strstr(display[i], S_KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
+            else if (strstr(display[i], S_KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
+            else if (strstr(display[i], S_HERZ)) wattron(win_server, COLOR_PAIR(RED));
+
             mvwprintw(win_server, y1, 2, "%s", display[i]);
+
+            wattroff(win_server, COLOR_PAIR(WHITE));
+            wattroff(win_server, COLOR_PAIR(BLUE));
+            wattroff(win_server, COLOR_PAIR(YELLOW));
+            wattroff(win_server, COLOR_PAIR(RED));
         }
         // --- END UI SECTION ---
 
@@ -326,7 +337,7 @@ int main() {
 
         if (turn) {
             if (has_played) {
-                char* display_msg = "";
+                char display_msg[70] = { 0 };
 
                 if (any_selected) {
 
@@ -337,20 +348,13 @@ int main() {
                     for (int i = 0; i < played_hand_size; i++) {
                         char *msg = return_card(played_hand[i]);
 
-                        if (strstr(msg, S_PIK)) wattron(win_server, COLOR_PAIR(WHITE));
-                        else if (strstr(msg, S_KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
-                        else if (strstr(msg, S_KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
-                        else if (strstr(msg, S_HERZ)) wattron(win_server, COLOR_PAIR(RED));
+                        strncat(display_msg, msg, strlen(msg));
+                        strncat(display_msg, " ", strlen(" ") + 1);
 
-                        strcat(display_msg, msg);
-
-                        wattroff(win_server, COLOR_PAIR(WHITE));
-                        wattroff(win_server, COLOR_PAIR(BLUE));
-                        wattroff(win_server, COLOR_PAIR(YELLOW));
-                        wattroff(win_server, COLOR_PAIR(RED));
                         free(msg);
                     }
                     display_msg[strlen(display_msg)] = '\0';
+                    line_count--; // replace "your turn." message
                     add_message(display, display_msg, &line_count, win_server);
                 } else {
 
