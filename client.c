@@ -225,7 +225,7 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s has won this hand.", players[player_who_won]);
                     }
-                    add_message(display, msg, &line_count, win_server);
+                    add_message(display, msg, &line_count);
                 }
             }
 
@@ -257,7 +257,7 @@ int main() {
                     }
                     hand_type = get_hand_type(received_hand, index);
                     line_count--;
-                    add_message(display, msg, &line_count, win_server);
+                    add_message(display, msg, &line_count);
                 }
             }
 
@@ -282,7 +282,7 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
                     }
-                    add_message(display, msg, &line_count, win_server);
+                    add_message(display, msg, &line_count);
                 }
             }
 
@@ -293,7 +293,7 @@ int main() {
                     char msg[60];
                     snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
                     line_count--;
-                    add_message(display, msg, &line_count, win_server);
+                    add_message(display, msg, &line_count);
                 }
             }
 
@@ -486,10 +486,10 @@ int main() {
                     }
                     display_msg[strlen(display_msg)] = '\0';
                     line_count--; // replace "your turn." message
-                    add_message(display, display_msg, &line_count, win_server);
+                    add_message(display, display_msg, &line_count);
                 } else {
                     line_count--;
-                    add_message(display, "You passed.", &line_count, win_server);
+                    add_message(display, "You passed.", &line_count);
                 }
 
                 memset(played_hand, 0, hand_size * sizeof(int));
@@ -573,7 +573,7 @@ int main() {
                             } else {
                                 // INVALID HAND
                                 line_count--;
-                                add_message(display, "Invalid hand!", &line_count, win_server);
+                                add_message(display, "Invalid hand!", &line_count);
                                 memset(selected_cards, 0, hand_size * sizeof(int));
                             }
                         } else {

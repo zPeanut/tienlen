@@ -59,7 +59,7 @@ void draw_user_list(int width, int height, int line_x, int player_count, int* sc
     }
 }
 
-void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count, WINDOW *win) {
+void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count) {
     strncpy(messages[*line_count], buf, MAX_MESSAGE_LENGTH - 1);
     messages[*line_count][MAX_MESSAGE_LENGTH - 1] = '\0';
     (*line_count)++;
