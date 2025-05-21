@@ -38,6 +38,7 @@ int main() {
     int game_start_flag = 1;
     int hand_size = HAND_SIZE;              // max win_hand size (always 13, even if fewer than 4 players are connected)
     int has_played = 0;                     // keep track if it's your turn or not
+    int has_cleared = 0;
     int highlight = 0;                      // highlight animation_flag for selected card
     int line_count = 0;                     // line count for window
     char* name;
@@ -143,8 +144,9 @@ int main() {
                     }
                 }
                 all_players_connected = (waiting_player_count == player_count);
-                wnoutrefresh(win_user); // queue for refresh
+                if (!all_players_connected) has_cleared = 0;
 
+                wnoutrefresh(win_user); // queue for refresh
             }
 
             else if (strstr(recv_buffer, "AMOUNT")) {
@@ -202,16 +204,14 @@ int main() {
                     mvwprintw(win_server, 0, 2, " client position: %i ", client_position);
                     wrefresh(win_server);
 
+                    char msg[40] = { 0 };
                     if (player_at_turn == client_position) {
-                        char *msg = "Your turn.";
-                        add_message(display, msg, &line_count, win_server);
-
+                        snprintf(msg, sizeof(msg), "Your turn.");
                         turn = 1;
                     } else {
-                        char msg[40] = { 0 };
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
-                        add_message(display, msg, &line_count, win_server);
                     }
+                    add_message(display, msg, &line_count, win_server);
                 }
             }
 
@@ -233,6 +233,16 @@ int main() {
 
         // waiting room
         if (!all_players_connected) {
+
+            if(!has_cleared) {
+                memset(display, 0, sizeof(display));
+                werase(win_server);
+                box(win_server, 0, 0);
+                wrefresh(win_server);
+                line_count = 0;
+                has_cleared = 1;
+            }
+
             game_start_flag = 1;
             animation_flag = 0; // ensure animation plays again when reconnected
             char* waiting_msg = " Waiting for players to connect";
