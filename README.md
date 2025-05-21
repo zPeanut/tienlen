@@ -1,6 +1,6 @@
 Tiến lên - Go forward
 ========
-##### Cumulative hours spent (so far): 46h
+##### Cumulative hours spent (so far): 50.5h
 ## About
 This is a C implementation of the Vietnamese card game "Tiến lên", also known as "Thirteen", "Killer" and other regional names. It features online-play functionality for up to four players using TCP sockets, allowing play over a network or a locally hosted machine.
 The game was written in C, as a personal challenge, and to improve my C capabilities. The user interface was built using the [Ncurses](https://invisible-island.net/ncurses/) library, while everything else (networking, game logic, supporting systems) were implemented by myself.
@@ -54,16 +54,16 @@ Having a quartet of 2's on hand, automatically wins the game, regardless of bein
   
   client:
   - [ ] add ui element to signify what type of hand is being played right now
-  - [ ] add pass button to ui (keybind? visual button?) -> currently playing nothing is a pass (might need to rework or not)
+  - [X] add pass button to ui (pressing space while highlighting nothing passes)
   - [ ] display score counter somewhere (maybe on connected users list)
   - [ ] display server messages indicating which player played what
-  - [ ] display server message indicating player passed
+  - [X] display server message indicating player passed
 
   server:
   - [X] add waiting room for connecting players
   - [X] server needs to deal cards to players
   - [ ] add general game logic (including bombs, instant win etc.)
-  - [ ] add turn based card laying by clients (playing cards or passing)
+  - [X] add turn based card laying by clients (playing cards or passing)
   - [ ] add score tracking (winning a game adds one point to the respective player)
 
 future:
