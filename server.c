@@ -40,7 +40,7 @@ typedef struct {
     int max_players;
 } thread_args;
 
-void *io_thread(void* arg) {
+void* io_thread(void* arg) {
     fd_set readfds;
     int max_fd;
     struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };

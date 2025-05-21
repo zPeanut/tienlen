@@ -345,20 +345,56 @@ int main() {
         draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
 
 
+        // draw played cards
         for (int i = 0; i < line_count; ++i) {
             int y1 = i * 2 + 2; // +1 offset if box border exists
 
-            if (strstr(display[i], S_PIK)) wattron(win_server, COLOR_PAIR(WHITE));
-            else if (strstr(display[i], S_KREUZ)) wattron(win_server, COLOR_PAIR(BLUE));
-            else if (strstr(display[i], S_KARO)) wattron(win_server, COLOR_PAIR(YELLOW));
-            else if (strstr(display[i], S_HERZ)) wattron(win_server, COLOR_PAIR(RED));
+            char line_buffer[256];
+            strncpy(line_buffer, display[i], sizeof(line_buffer) - 1);
+            line_buffer[sizeof(line_buffer) - 1] = '\0';
 
-            mvwprintw(win_server, y1, 2, "%s", display[i]);
+            int current_x = 2;
 
-            wattroff(win_server, COLOR_PAIR(WHITE));
-            wattroff(win_server, COLOR_PAIR(BLUE));
-            wattroff(win_server, COLOR_PAIR(YELLOW));
-            wattroff(win_server, COLOR_PAIR(RED));
+            char* token = strtok(line_buffer, " ");
+            while (token != NULL) {
+                int is_card = 0;
+                int color_pair = 0;
+                size_t token_len = strlen(token);
+                size_t suit_len = strlen(S_PIK);
+
+                // does token end with suit symbol
+                if (token_len >= suit_len) {
+                    char *suit_pos = token + token_len - suit_len; // point to the last 3 bytes
+
+                    if (memcmp(suit_pos, S_PIK, suit_len) == 0) {
+                        color_pair = COLOR_PAIR(WHITE);
+                        is_card = 1;
+                    } else if (memcmp(suit_pos, S_KREUZ, suit_len) == 0) {
+                        color_pair = COLOR_PAIR(BLUE);
+                        is_card = 1;
+                    } else if (memcmp(suit_pos, S_KARO, suit_len) == 0) {
+                        color_pair = COLOR_PAIR(YELLOW);
+                        is_card = 1;
+                    } else if (memcmp(suit_pos, S_HERZ, suit_len) == 0) {
+                        color_pair = COLOR_PAIR(RED);
+                        is_card = 1;
+                    }
+                }
+
+                if (is_card) wattron(win_server, color_pair);
+                mvwprintw(win_server, y1, current_x, "%s", token);
+                wattroff(win_server, color_pair);
+
+                current_x += strlen(token);
+
+                char *next_token = strtok(NULL, " ");
+                if (next_token != NULL) {
+                    mvwprintw(win_server, y1, current_x, " ");
+                    current_x++;
+                }
+
+                token = next_token;
+            }
         }
         // --- END UI SECTION ---
 
