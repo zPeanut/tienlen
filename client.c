@@ -79,7 +79,7 @@ int main() {
     // initial rendering of userlist
     int line_x = 3 * (width / 4); // 3/4th of the screen
 
-    draw_user_list(width, height, line_x, player_count, name, players, win_user);
+    draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
     for (int i = 0; i < NUM_PLAYERS; i++) {
         if(strlen(players[i]) > 0) waiting_player_count++;
     }
@@ -128,7 +128,7 @@ int main() {
                 for (int i = line_x + 2; i < width - 2; i++) {
                     for (int j = 0; j < player_count; j++) {
                         mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
-                        draw_user_list(width, height, line_x, player_count, name, players, win_user);
+                        draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
                     }
                 }
                 all_players_connected = (waiting_player_count == player_count);
@@ -248,7 +248,7 @@ int main() {
         int y = win_height / 2;
 
         // win_user loop
-        draw_user_list(width, height, line_x, player_count, name, players, win_user);
+        draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
 
         // waiting room
         if (!all_players_connected) {

@@ -35,7 +35,7 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
     }
 }
 
-void draw_user_list(int width, int height, int line_x, int player_count, char* name, char (*players)[MAX_NAME_LENGTH], WINDOW *win) {
+void draw_user_list(int width, int height, int line_x, int player_count, int* score, char* name, char (*players)[MAX_NAME_LENGTH], WINDOW *win) {
     mvwprintw(win, 2, line_x + 2, "Connected Users:");
 
     // draw vertical line for connected users
@@ -54,6 +54,7 @@ void draw_user_list(int width, int height, int line_x, int player_count, char* n
             if (strcmp(players[i], name) == 0) wattron(win, COLOR_PAIR(CYAN));
             mvwprintw(win, 5 + i * 2, line_x + 2, "%s", players[i]);
             wattroff(win, COLOR_PAIR(CYAN));
+            mvwprintw(win, 5 + i * 2, width - 3, "%i", score[i]);
         }
     }
 }
