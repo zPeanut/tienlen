@@ -11,7 +11,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#include "connutils.h"
+#include "conn_utils.h"
 
 int connect_timeout(int socket, struct sockaddr *address, socklen_t address_length, int timeout) {
     int flags = fcntl(socket, F_GETFL, 0);
