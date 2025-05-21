@@ -336,6 +336,9 @@ int main() {
                             send_message(client_sockets[i], "TURN", msg);
                         }
                     }
+
+                    // TODO: determine round winner, reset "pass array" on win, track score
+                    // TODO: fix win_server clear on disconnect
                 }
             }
 

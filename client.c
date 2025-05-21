@@ -226,8 +226,8 @@ int main() {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_who_passed = atoi(colon + 1);
-                    char msg[30];
-                    snprintf(msg, sizeof(msg), "Player %i has passed.", player_who_passed);
+                    char msg[60];
+                    snprintf(msg, sizeof(msg), "Player %s has passed.", players[player_who_passed]);
                     mvwprintw(win_server, line_count, 2, "%s", msg);
                     line_count += 2;
                     wrefresh(win_server);
