@@ -176,21 +176,11 @@ int main() {
                 }
             }
 
-            else if (strstr(recv_buffer, "PASS")) {
-                char* colon = strchr(recv_buffer, ':');
-                if (colon) {
-                    int player_who_passed = atoi(colon + 1);
-                    char msg[60];
-                    snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
-                    add_message(display, msg, &line_count, win_server);
-                }
-            }
-
             else if (strstr(recv_buffer, "TURN")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_at_turn = atoi(colon + 1);
-                    mvwprintw(win_server, 0, 2, " client position: %i ", client_position);
+                    mvwprintw(win_server, 0, 2, " client position: %i ", client_position); // TODO: this is for debug, remove when done and put current round hand type here
                     wrefresh(win_server);
 
                     char msg[40] = { 0 };
@@ -203,6 +193,46 @@ int main() {
                     add_message(display, msg, &line_count, win_server);
                 }
             }
+
+            else if (strstr(recv_buffer, "PLAYED")) {
+
+                char *colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_played = atoi(colon + 1);
+                    char *cards_start = strchr(colon + 1, ':') + 1;
+
+                    char msg[128] = { 0 };
+                    snprintf(msg, sizeof(msg), "%s played: ", players[player_who_played]);
+
+                    char *card = strtok(cards_start, ";");
+                    while (card) {
+                        int suit, rank;
+                        sscanf(card, "%d,%d", &suit, &rank);
+
+                        Card temp_card = { (Suit) suit, (Rank) rank };
+                        char *card_str = return_card(temp_card);
+                        strncat(msg, card_str, sizeof(msg) - strlen(msg) - 1);
+                        strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
+
+                        free(card_str);
+                        card = strtok(NULL, ";");
+                    }
+
+                    add_message(display, msg, &line_count, win_server);
+                }
+            }
+
+            else if (strstr(recv_buffer, "PASS")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_passed = atoi(colon + 1);
+                    char msg[60];
+                    snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
+                    add_message(display, msg, &line_count, win_server);
+                }
+            }
+
+
 
             // remove parsed message from buffer
             size_t remaining = recv_buffer_len - (parsed_message_end - recv_buffer + 1);
@@ -340,7 +370,6 @@ int main() {
                 char display_msg[70] = { 0 };
 
                 if (any_selected) {
-
                     mvwhline(win_server, 4, 2, ' ', line_x - 2);
                     char* display_msg_1 = "You played: ";
                     strncat(display_msg, display_msg_1, strlen(display_msg_1));
@@ -357,12 +386,7 @@ int main() {
                     line_count--; // replace "your turn." message
                     add_message(display, display_msg, &line_count, win_server);
                 } else {
-
                     add_message(display, "You passed.", &line_count, win_server);
-
-                    char buf[10] = { 0 };
-                    snprintf(buf, sizeof(buf), "%i", client_position);
-                    send_message(sock, "PASS", buf);
                 }
 
                 memset(played_hand, 0, hand_size * sizeof(int));
@@ -402,14 +426,47 @@ int main() {
                         any_selected = 0;
 
                         for (int i = 0; i < hand_size; i++) {
-                            if (selected_cards[i]) {
+                            if (selected_cards[i]) { // are any cards selected?
                                 any_selected = 1;
-                                played_hand[played_hand_size++] = player_deck[i];
+                                played_hand[played_hand_size++] = player_deck[i]; // if yes, add them to the "played hand"
                             } else {
-                                player_deck[new_index++] = player_deck[i];
+                                player_deck[new_index++] = player_deck[i]; // compact the other cards and remove the selected ones
                             }
-                            selected_cards[i] = 0;
+                            selected_cards[i] = 0; // deselect the card
+
+
                         }
+
+                        if (any_selected) {
+                            // build played hand string and send to server
+                            char played_msg[50] = { 0 };
+                            char buf[10] = { 0 };
+
+                            // add player number to message
+                            // sending something like "PLAYED:1:2,5;2,6;2,7"
+                            snprintf(buf, sizeof(buf), "%i:", client_position);
+                            strncat(played_msg, buf, sizeof(played_msg) - strlen(played_msg) - 1);
+                            for (int i = 0; i < played_hand_size; i++) {
+                                Suit s = played_hand[i].suit;
+                                Rank r = played_hand[i].rank;
+                                char card_str[10];
+                                if (i < played_hand_size - 1) {
+                                    snprintf(card_str, sizeof(card_str), "%d,%d;", s, r);
+                                } else {
+                                    snprintf(card_str, sizeof(card_str), "%d,%d", s, r);
+                                }
+                                strncat(played_msg, card_str, sizeof(played_msg) - strlen(played_msg) - 1);
+                            }
+                            send_message(sock, "PLAYED", played_msg);
+                        } else {
+
+                            // PASSED
+                            char buf[10] = { 0 };
+                            snprintf(buf, sizeof(buf), "%i", client_position);
+                            send_message(sock, "PASS", buf);
+                        }
+
+
                         has_played = 1;
                         hand_size = new_index;
                         if (highlight > new_index) highlight = new_index - 1;

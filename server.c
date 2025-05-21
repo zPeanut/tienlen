@@ -377,6 +377,37 @@ int main() {
                 }
             }
 
+            else if(strstr(entry->message.buffer, "PLAYED")) {
+
+
+
+                char* colon = strchr(entry->message.buffer, ':');
+                int player_who_played = 0;
+                if (colon) {
+                    player_who_played = atoi(colon + 1);
+                }
+
+                for (int i = 0; i < max_players; i++) {
+                    if (i != player_who_played) {
+                        printf("Sent to %s: %s\n", players[i], entry->message.buffer);
+                        write(client_sockets[i], entry->message.buffer, strlen(entry->message.buffer));
+                    }
+                }
+
+                Card played_deck[HAND_SIZE];
+
+                char *token = strtok(entry->message.buffer + 9, ";"); // skip prefix
+
+                for (int i = 0; token; i++) {
+                    int suit, rank;
+                    sscanf(token, "%d,%d", &suit, &rank);
+                    played_deck[i].suit = (Suit) suit;
+                    played_deck[i].rank = (Rank) rank;
+
+                    token = strtok(NULL, ";");
+                }
+            }
+
             // remove from queue
             STAILQ_REMOVE_HEAD(&message_queue, entries);
             free(entry);
