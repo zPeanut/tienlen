@@ -64,8 +64,7 @@ int main() {
     box(win_server, 0, 0);
     box(win_user, 0, 0);
 
-    keypad(win_hand, true);
-    nodelay(win_hand, true); // make input non-blocking
+
 
     int win_height, win_width;
     getmaxyx(win_hand, win_height, win_width);
@@ -159,6 +158,7 @@ int main() {
                 }
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
                 animation_flag = 0; // enable animation
+                flushinp();
             }
 
             else if (strstr(recv_buffer, "WIN_HAND")) {
@@ -263,6 +263,10 @@ int main() {
             mvwprintw(win_hand, win_height / 2, (int) (win_width - strlen(game_start_msg)) / 2, "%s", game_start_msg);
             wrefresh(win_hand);
             // usleep(2000 * 1000); TODO: add this back on prod
+
+            // enable input
+            keypad(win_hand, true);
+            nodelay(win_hand, true); // make input non-blocking
             game_start_flag = 0;
         }
 
