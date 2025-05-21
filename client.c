@@ -14,17 +14,6 @@
 
 int waiting_player_count = 0;
 
-void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count, WINDOW *win) {
-    strncpy(messages[*line_count], buf, MAX_MESSAGE_LENGTH - 1);
-    messages[*line_count][MAX_MESSAGE_LENGTH - 1] = '\0';
-    (*line_count)++;
-}
-
-void clear_screen() {
-
-}
-
-
 int main() {
     setlocale(LC_ALL, "");
 
@@ -34,7 +23,7 @@ int main() {
     int animation_flag = 0;                 // animation_flag = check if animation already has_played
     int choice;                             // choice = key input
     int client_position = 0;                // get current player array position (used for turns and highlight)
-    char display[32][MAX_MESSAGE_LENGTH];  // 32 strings with max message length length
+    char display[32][MAX_MESSAGE_LENGTH];  // 32 strings with max message length
     int game_start_flag = 1;
     int hand_size = HAND_SIZE;              // max win_hand size (always 13, even if fewer than 4 players are connected)
     int has_played = 0;                     // keep track if it's your turn or not

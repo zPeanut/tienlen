@@ -297,6 +297,7 @@ int main() {
         while ((entry = STAILQ_FIRST(&message_queue)) != NULL) {
             printf("Received: %s\n", entry->message.buffer);
 
+            // GAME LOGIC HERE
             if (strstr(entry->message.buffer, "PASS")) {
                 char* colon = strchr(entry->message.buffer, ':');
                 if (colon) {
@@ -365,13 +366,8 @@ int main() {
                             }
                         }
                     }
-
-                    // TODO:
                 }
             }
-
-            // GAME LOGIC HERE
-
 
             // remove from queue
             STAILQ_REMOVE_HEAD(&message_queue, entries);

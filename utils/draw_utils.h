@@ -11,5 +11,6 @@
 int setup_ncurses_ui();
 void draw_user_list(int width, int height, int line_x, int player_count, char* name, char (*players)[MAX_NAME_LENGTH], WINDOW *win);
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards);
+void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count, WINDOW *win);
 
 #endif //TIENLEN_DRAWUTILS_H
