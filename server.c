@@ -160,9 +160,17 @@ void *io_thread(void* arg) {
             }
 
             if (has_dealt) {
+
+                // generate random player between 0 and max_players
+                srand(time(NULL));
+                int random_player = rand() % player_count;
+
+                char str_random_player[2];
+                snprintf(str_random_player, sizeof(str_random_player), "%i", random_player);
+
                 for (int i = 0; i < player_count; i++) {
-                    printf("Sent to %s: TURN:%s\n", players[i], "0");
-                    send_message(client_sockets[i], "TURN", "0");
+                    printf("Sent to %s: TURN:%i\n", players[i], random_player);
+                    send_message(client_sockets[i], "TURN", str_random_player);
                 }
             }
 
