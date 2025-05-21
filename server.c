@@ -87,7 +87,7 @@ void *io_thread(void* arg) {
             char name[30];
             ssize_t b_recv = read(new_socket, name, sizeof(name) - 1);
             if (b_recv <= 0) {
-                // disconnect before entering name -> TODO: handle with message maybe?
+                printf("User disconnected without entering a name.\n");
                 close(new_socket);
                 continue;
             }
