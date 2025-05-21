@@ -179,7 +179,7 @@ int main() {
             }
 
             else if (strstr(recv_buffer, "PLAYED")) {
-
+                played_hand_size = 0;
                 char *colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_who_played = atoi(colon + 1);
@@ -197,6 +197,8 @@ int main() {
 
                         Card temp_card = { (Suit) suit, (Rank) rank };
                         received_hand[index++] = temp_card;
+
+                        played_hand_size++;
                         char *card_str = return_card(temp_card);
                         strncat(msg, card_str, sizeof(msg) - strlen(msg) - 1);
                         strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
@@ -220,8 +222,12 @@ int main() {
                     mvwhline(win_server, 0, 1, ACS_HLINE, win_x - 2);
 
                     char hand_type_str[50] = {0};
-                    snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s ", return_hand_type(hand_type));
+                    char str[3];
+                    snprintf(str, sizeof(str), "%i", played_hand_size);
+                    snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
                     mvwprintw(win_server, 0, 2, "%s", hand_type_str);
+
+
                     wrefresh(win_server);
 
                     char msg[40] = { 0 };
@@ -263,7 +269,11 @@ int main() {
 
         // win_user loop
         draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
-        mvwprintw(win_server, 0, 2, " hand type: %s ", return_hand_type(hand_type));
+        char hand_type_str[50] = {0};
+        char str[3];
+        snprintf(str, sizeof(str), "%i", played_hand_size);
+        snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
+        mvwprintw(win_server, 0, 2, "%s", hand_type_str);
 
         // waiting room
         if (!all_players_connected) {
@@ -442,7 +452,6 @@ int main() {
                 }
 
                 memset(played_hand, 0, hand_size * sizeof(int));
-                played_hand_size = 0;
                 has_played = 0;
                 any_selected = 0;
                 turn = 0;

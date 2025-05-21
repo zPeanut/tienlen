@@ -58,3 +58,7 @@ int get_hand_type(Card *hand, int size) {
 int is_valid_hand(Card* hand, int size) {
     return get_hand_type(hand, size) != INVALID;
 }
+
+int is_hand_higher(Card* hand1, Card* hand2, int size) {
+    return (hand1[size].suit > hand2[size].suit);
+}
