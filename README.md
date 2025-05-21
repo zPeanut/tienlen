@@ -56,7 +56,7 @@ Having a quartet of 2's on hand, automatically wins the game, regardless of bein
   - [ ] add ui element to signify what type of hand is being played right now
   - [X] add pass button to ui (pressing space while highlighting nothing passes)
   - [ ] display score counter somewhere (maybe on connected users list)
-  - [ ] display server messages indicating which player played what
+  - [X] display server messages indicating which player played what
   - [X] display server message indicating player passed
 
   server:
