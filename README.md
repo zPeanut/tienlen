@@ -11,7 +11,7 @@ The game was written in C, as a personal challenge, and to improve my C capabili
 `$ gcc server.c utils/conn_utils.c utils/cards.c -o server -pthread`
 
 #### client.c
-`$ gcc client.c utils/cards.c utils/conn_utils.c utils/draw_utils.c -lncursesw -o client`  
+`$ gcc client.c utils/cards.c utils/conn_utils.c utils/draw_utils.c utils/hands.c -lncursesw -o client`  
 
 Run `server` on a machine, and connect via `client`, by typing in the corresponding IP. Locally hosted games are also possible, simply leave the IP field blank, when setting up the server, aswell as when you're connecting via the client.
 
