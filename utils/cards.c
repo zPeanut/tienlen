@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
 #include "cards.h"
 
 void init_deck(Deck *deck) {
