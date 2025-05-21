@@ -215,7 +215,16 @@ int main() {
                 all_players_connected = (waiting_player_count == player_count);
                 wnoutrefresh(win_user); // queue for refresh
 
-            } else if (strstr(recv_buffer, "DEAL")) {
+            }
+
+            else if (strstr(recv_buffer, "AMOUNT")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    player_count = atoi(colon + 1);
+                }
+            }
+
+            else if (strstr(recv_buffer, "DEAL")) {
                 memset(selected_cards, 0, sizeof(selected_cards)); // reset
                 char *token = strtok(recv_buffer + 5, ";"); // skip prefix
 
@@ -229,13 +238,6 @@ int main() {
                 }
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
                 animation_flag = 0; // enable animation
-            }
-
-            else if (strstr(recv_buffer, "AMOUNT")) {
-                char* colon = strchr(recv_buffer, ':');
-                if (colon) {
-                    player_count = atoi(colon + 1);
-                }
             }
 
             else if (strstr(recv_buffer, "WIN_HAND")) {
@@ -277,7 +279,14 @@ int main() {
 
                     if (player_at_turn == client_position) {
                         turn = 1;
+                        char *msg = "Your turn.";
+                        mvwprintw(win_server, line_count, 2, "%s", msg);
+                    } else {
+                        char msg[40] = { 0 };
+                        snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
+                        mvwprintw(win_server, line_count, 2, "%s", msg);
                     }
+                    line_count += 2;
                 }
             }
 
@@ -384,10 +393,7 @@ int main() {
         // --- BEGIN GAME LOGIC ---
 
         if (turn) {
-            if (!has_played) {
-                char *msg = "Your turn.";
-                mvwprintw(win_server, line_count, 2, "%s", msg);
-            } else {
+            if (has_played) {
                 int x_pos = 14; // starting x pos after "you has_played: "
 
                 if (any_selected) {

@@ -313,7 +313,7 @@ int main() {
                     passed_players[player_at_turn] = 1;
 
                     // ---- debug string ----
-                    char array_msg[40];
+                    char array_msg[40] = { 0 };
                     strcat(array_msg, "{ ");
                     for (int i = 0; i < max_players; i++) {
                         char number[3];
@@ -355,8 +355,9 @@ int main() {
                             if (client_sockets[i] != -1) {
                                 char msg[10] = { 0 };
                                 snprintf(msg, sizeof(msg), "%i", winner_index);
-                                printf("Sent to %s: WIN:%s\n", players[i], msg);
+                                printf("Sent to %s: WIN_HAND:%s\n", players[i], msg);
                                 send_message(client_sockets[i], "WIN_HAND", msg);
+                                send_message(client_sockets[i], "TURN", msg);
                             }
                         }
 
