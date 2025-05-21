@@ -345,7 +345,7 @@ int main() {
         draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
 
 
-        // draw played cards
+        // draw messages
         for (int i = 0; i < line_count; ++i) {
             int y1 = i * 2 + 2; // +1 offset if box border exists
 
