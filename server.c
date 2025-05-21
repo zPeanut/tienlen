@@ -344,10 +344,9 @@ int main() {
                         if (passed_players[i] == 0) { // if player found who hasnt passed, if hes the only one, win round, if not, his turn
                             if (count_players == 1) {
                                 winner_index = i;
-                            } else {
-                                player_at_turn = i;
-                                break;
                             }
+                            player_at_turn = i;
+                            break;
                         }
                     }
 
@@ -357,7 +356,7 @@ int main() {
                                 char msg[10] = { 0 };
                                 snprintf(msg, sizeof(msg), "%i", winner_index);
                                 printf("Sent to %s: WIN:%s\n", players[i], msg);
-                                send_message(client_sockets[i], "WIN", msg);
+                                send_message(client_sockets[i], "WIN_HAND", msg);
                             }
                         }
 
@@ -374,7 +373,6 @@ int main() {
                         }
                     }
 
-                    // TODO:
                     // TODO: fix win_server clear on disconnect
                 }
             }

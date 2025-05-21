@@ -39,10 +39,35 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
     }
 }
 
-void draw_players(char players[][MAX_NAME_LENGTH], char* client_name, int index, int line_x, WINDOW *win) {
-    if (strcmp(players[index], client_name) == 0) wattron(win, COLOR_PAIR(CYAN));
-    mvwprintw(win, 5 + index * 2, line_x + 2, "%s", players[index]);
-    wattroff(win, COLOR_PAIR(CYAN));
+void add_message() {
+
+}
+
+void clear_screen() {
+
+}
+
+void draw_user_list(int width, int height, int line_x, int player_count, char* name, char (*players)[MAX_NAME_LENGTH], WINDOW *win) {
+    mvwprintw(win, 2, line_x + 2, "Connected Users:");
+
+    // draw vertical line for connected users
+    for (int i = 1; i < height - 1; i++) {
+        mvwaddch(win, i, line_x, ACS_VLINE);
+    }
+
+    // draw underline
+    for (int i = line_x + 2; i < width - 2; i++) {
+        mvwaddch(win, 3, i, ACS_HLINE);
+    }
+
+    // draw user strings
+    for (int i = 0; i < player_count; i++) {
+        if (strlen(players[i]) > 0) {
+            if (strcmp(players[i], name) == 0) wattron(win, COLOR_PAIR(CYAN));
+            mvwprintw(win, 5 + i * 2, line_x + 2, "%s", players[i]);
+            wattroff(win, COLOR_PAIR(CYAN));
+        }
+    }
 }
 
 int setup_ncurses_ui() {
@@ -134,22 +159,12 @@ int main() {
 
     // initial rendering of userlist
     int line_x = 3 * (width / 4); // 3/4th of the screen
-    mvwprintw(win_user, 2, line_x + 2, "Connected Users: %s", name);
 
-    for (int i = 1; i < height - 1; i++) {
-        mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
-    }
-
-    for (int i = line_x + 2; i < width - 2; i++) {
-        mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
-    }
+    draw_user_list(width, height, line_x, player_count, name, players, win_user);
     for (int i = 0; i < NUM_PLAYERS; i++) {
-        if(strlen(players[i]) > 0) {
-            draw_players(&players[i], name, i, line_x, win_user);
-            waiting_player_count++;
-        }
-        all_players_connected = (waiting_player_count == player_count);  // check if with current connection, enough players are connected
+        if(strlen(players[i]) > 0) waiting_player_count++;
     }
+    all_players_connected = (waiting_player_count == player_count);  // check if with current connection, enough players are connected
 
     wrefresh(win_user);
     wrefresh(win_hand);
@@ -194,7 +209,7 @@ int main() {
                 for (int i = line_x + 2; i < width - 2; i++) {
                     for (int j = 0; j < player_count; j++) {
                         mvwaddch(win_user, 5 + j * 2, i, ' '); // clear old users
-                        draw_players(players, name, i, line_x, win_user);
+                        draw_user_list(width, height, line_x, player_count, name, players, win_user);
                     }
                 }
                 all_players_connected = (waiting_player_count == player_count);
@@ -223,20 +238,18 @@ int main() {
                 }
             }
 
-            else if (strstr(recv_buffer, "WIN")) {
+            else if (strstr(recv_buffer, "WIN_HAND")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_who_won = atoi(colon + 1);
 
-                    score[player_who_won]++;
-
                     char msg[60];
                     if (client_position == player_who_won) {
-                        snprintf(msg, sizeof(msg), "You won this round!");
+                        snprintf(msg, sizeof(msg), "You won this hand!");
                         mvwprintw(win_server, line_count, 2, "%s", msg);
                         line_count += 2;
                     } else {
-                        snprintf(msg, sizeof(msg), "%s has won this round.", players[player_who_won]);
+                        snprintf(msg, sizeof(msg), "%s has won this hand.", players[player_who_won]);
                         mvwprintw(win_server, line_count, 2, "%s", msg);
                         line_count += 2;
                     }
@@ -284,20 +297,7 @@ int main() {
         int y = win_height / 2;
 
         // win_user loop
-        mvwprintw(win_user, 2, line_x + 2, "Connected Users:");
-        for (int i = 1; i < height - 1; i++) {
-            mvwaddch(win_user, i, line_x, ACS_VLINE); // draw vertical line for connected users
-        }
-
-        for (int i = line_x + 2; i < width - 2; i++) {
-            mvwaddch(win_user, 3, i, ACS_HLINE); // draw underline
-        }
-
-        for (int i = 0; i < player_count; i++) {
-            if (strlen(players[i]) > 0) {
-                draw_players(players, name, i, line_x, win_user);
-            }
-        }
+        draw_user_list(width, height, line_x, player_count, name, players, win_user);
 
         // waiting room
         if (!all_players_connected) {
