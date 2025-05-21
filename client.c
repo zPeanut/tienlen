@@ -91,6 +91,7 @@ int main() {
     int player_count;
     static char recv_buffer[4096] = { 0 };  // global buffer to collect data
     static size_t recv_buffer_len = 0;      // track buffer length
+    int score[NUM_PLAYERS] = { 0 };         // track score on won round
     int selected_cards[hand_size];          // array of flags - checks if card at index is highlighted to be has_played
     int sock = setup_connection(8, players, &player_count, &name);  // setup client connection to server
     int total_len;                          // total length of win_hand (used for centering)
@@ -222,12 +223,32 @@ int main() {
                 }
             }
 
+            else if (strstr(recv_buffer, "WIN")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_won = atoi(colon + 1);
+
+                    score[player_who_won]++;
+
+                    char msg[60];
+                    if (client_position == player_who_won) {
+                        snprintf(msg, sizeof(msg), "You won this round!");
+                        mvwprintw(win_server, line_count, 2, "%s", msg);
+                        line_count += 2;
+                    } else {
+                        snprintf(msg, sizeof(msg), "%s has won this round.", players[player_who_won]);
+                        mvwprintw(win_server, line_count, 2, "%s", msg);
+                        line_count += 2;
+                    }
+                }
+            }
+
             else if (strstr(recv_buffer, "PASS")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_who_passed = atoi(colon + 1);
                     char msg[60];
-                    snprintf(msg, sizeof(msg), "Player %s has passed.", players[player_who_passed]);
+                    snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
                     mvwprintw(win_server, line_count, 2, "%s", msg);
                     line_count += 2;
                     wrefresh(win_server);

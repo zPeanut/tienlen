@@ -106,7 +106,7 @@ void *io_thread(void* arg) {
             }
 
             waiting_player_count++;
-            printf("Player %s connected. (%d/%d)\n", name, waiting_player_count, player_count);
+            printf("%s connected. (%d/%d)\n", name, waiting_player_count, player_count);
 
 
             // comma seperated player list
@@ -188,7 +188,7 @@ void *io_thread(void* arg) {
 
                 if (b_recv <= 0) {
                     waiting_player_count--;
-                    printf("Player %s disconnected. (%d/%d)\n", players[i], waiting_player_count, player_count);
+                    printf("%s disconnected. (%d/%d)\n", players[i], waiting_player_count, player_count);
                     close(client_sockets[i]);
                     client_sockets[i] = -1;
 
@@ -282,7 +282,9 @@ int main() {
     }
 
     // game loop
-    int passed_players[4] = { 0 };
+
+    int passed_players[max_players];
+    memset(passed_players, 0, sizeof(passed_players));
     while(running) {
         pthread_mutex_lock(&queue_lock);
 
@@ -309,7 +311,18 @@ int main() {
                     int player_at_turn = atoi(colon + 1);
 
                     passed_players[player_at_turn] = 1;
-                    printf("{ %i, %i, %i, %i }\n", passed_players[0], passed_players[1], passed_players[2], passed_players[3]);
+
+                    // ---- debug string ----
+                    char array_msg[40];
+                    strcat(array_msg, "{ ");
+                    for (int i = 0; i < max_players; i++) {
+                        char number[3];
+                        snprintf(number, 3, "%i ", passed_players[i]);
+                        strcat(array_msg, number);
+                    }
+                    strcat(array_msg, "}");
+                    printf("%s\n", array_msg);
+                    // ----------------------
 
                     for (int i = 0; i < max_players; i++) {
                         if (client_sockets[i] != -1 && i != player_at_turn) {
@@ -320,24 +333,48 @@ int main() {
                         }
                     }
 
-                    // select new player
+                    // select new player, if player is only one who hasnt passed yet, win round for him
+                    int count_players = 0;
                     for (int i = 0; i < max_players; i++) {
-                        if (passed_players[i] != 1) {
-                            player_at_turn = i;
-                            break;
+                        if (passed_players[i] == 0) count_players++; // count players who havent passed
+                    }
+
+                    int winner_index = -1;
+                    for (int i = 0; i < max_players; i++) {
+                        if (passed_players[i] == 0) { // if player found who hasnt passed, if hes the only one, win round, if not, his turn
+                            if (count_players == 1) {
+                                winner_index = i;
+                            } else {
+                                player_at_turn = i;
+                                break;
+                            }
                         }
                     }
 
-                    for (int i = 0; i < max_players; i++) {
-                        if (client_sockets[i] != -1) {
-                            char msg[10] = { 0 };
-                            snprintf(msg, sizeof(msg), "%i", player_at_turn);
-                            printf("Sent to %s: TURN:%s\n", players[i], msg);
-                            send_message(client_sockets[i], "TURN", msg);
+                    if (winner_index != -1) {
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] != -1) {
+                                char msg[10] = { 0 };
+                                snprintf(msg, sizeof(msg), "%i", winner_index);
+                                printf("Sent to %s: WIN:%s\n", players[i], msg);
+                                send_message(client_sockets[i], "WIN", msg);
+                            }
+                        }
+
+                        // reset passes on round win
+                        memset(passed_players, 0, sizeof(passed_players));
+                    } else {
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] != -1) {
+                                char msg[10] = { 0 };
+                                snprintf(msg, sizeof(msg), "%i", player_at_turn);
+                                printf("Sent to %s: TURN:%s\n", players[i], msg);
+                                send_message(client_sockets[i], "TURN", msg);
+                            }
                         }
                     }
 
-                    // TODO: determine round winner, reset "pass array" on win, track score
+                    // TODO:
                     // TODO: fix win_server clear on disconnect
                 }
             }
