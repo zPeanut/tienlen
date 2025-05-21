@@ -85,8 +85,25 @@ void *io_thread(void* arg) {
             }
             name[b_recv] = '\0';
 
-
             pthread_mutex_lock(&player_lock);
+
+            // check for duplicate names
+            int duplicate = 0;
+            for (int i = 0; i < player_count; i++) {
+                if (client_sockets[i] != -1 && strcmp(players[i], name) == 0) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+
+            if (duplicate) {
+                send_message(new_socket, "ERROR", "Name is already taken!");
+                printf("Duplicate name %s was rejected from connecting.\n", name);
+                close(new_socket);
+                pthread_mutex_unlock(&player_lock);
+                continue;
+            }
+
             // copy entered names into players array
             for (int i = 0; i < player_count; i++) {
                 if (client_sockets[i] == -1) {
