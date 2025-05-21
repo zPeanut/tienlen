@@ -13,22 +13,14 @@
 #include <signal.h>
 #include <sys/queue.h>
 
-#include "utils/connutils.h"
+#include "utils/conn_utils.h"
+#include "utils/queue_utils.h"
+#include "utils/cards.h"
 
 int client_sockets[NUM_PLAYERS];
 int running = 1;
 int server_fd;
 int waiting_player_count = 0;
-
-typedef struct {
-    int client_fd;
-    char buffer[256];
-} Message;
-
-typedef struct message_entry {
-    Message message;
-    STAILQ_ENTRY(message_entry) entries;
-} MessageEntry;
 
 STAILQ_HEAD(stailq_head, message_entry) message_queue;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;

@@ -5,12 +5,8 @@
 #ifndef C_CONNUTILS_H
 #define C_CONNUTILS_H
 
-#include "cards.h"
 #include <sys/socket.h>
-
-#define DEFAULT_PORT 25565
-#define DEFAULT_IP "127.0.0.1"
-#define MAX_NAME_LENGTH 30
+#include "macros.h"
 
 int connect_timeout(int socket, struct sockaddr *address, socklen_t address_length, int timeout);
 int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_players, char** get_name);
