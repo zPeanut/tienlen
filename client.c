@@ -176,24 +176,6 @@ int main() {
                 }
             }
 
-            else if (strstr(recv_buffer, "TURN")) {
-                char* colon = strchr(recv_buffer, ':');
-                if (colon) {
-                    int player_at_turn = atoi(colon + 1);
-                    mvwprintw(win_server, 0, 2, " client position: %i ", client_position); // TODO: this is for debug, remove when done and put current round hand type here
-                    wrefresh(win_server);
-
-                    char msg[40] = { 0 };
-                    if (player_at_turn == client_position) {
-                        snprintf(msg, sizeof(msg), "Your turn.");
-                        turn = 1;
-                    } else {
-                        snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
-                    }
-                    add_message(display, msg, &line_count, win_server);
-                }
-            }
-
             else if (strstr(recv_buffer, "PLAYED")) {
 
                 char *colon = strchr(recv_buffer, ':');
@@ -217,7 +199,25 @@ int main() {
                         free(card_str);
                         card = strtok(NULL, ";");
                     }
+                    line_count--;
+                    add_message(display, msg, &line_count, win_server);
+                }
+            }
 
+            else if (strstr(recv_buffer, "TURN")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_at_turn = atoi(colon + 1);
+                    mvwprintw(win_server, 0, 2, " client position: %i ", client_position); // TODO: this is for debug, remove when done and put current round hand type here
+                    wrefresh(win_server);
+
+                    char msg[40] = { 0 };
+                    if (player_at_turn == client_position) {
+                        snprintf(msg, sizeof(msg), "Your turn.");
+                        turn = 1;
+                    } else {
+                        snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
+                    }
                     add_message(display, msg, &line_count, win_server);
                 }
             }
