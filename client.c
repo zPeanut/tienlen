@@ -140,11 +140,11 @@ int main() {
                 all_players_connected = (waiting_player_count == player_count);
                 if (!all_players_connected) has_cleared = 0;
 
-                // Redraw ONLY the user list window
+                // redraw ONLY the user list window
                 werase(win_user);
                 box(win_user, 0, 0);
                 draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
-                wrefresh(win_user); // Refresh explicitly
+                wrefresh(win_user);
             }
 
             else if (strstr(recv_buffer, "AMOUNT")) {

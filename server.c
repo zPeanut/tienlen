@@ -461,7 +461,7 @@ int main() {
 
                     // Reset passed players and set next turn
                     memset(passed_players, 0, sizeof(passed_players));
-                    player_at_turn = player_who_won; // Winner starts the new round
+                    player_at_turn = player_who_won; // winner starts the new round TODO: let the loser start next round
 
                     // Notify all clients of the new turn
                     char turn_msg[2];

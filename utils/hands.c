@@ -26,7 +26,7 @@ int get_hand_type(Card *hand, int size) {
     if (size >= 3) {
         int is_straight = 1;
         for (int i = 0; i < size - 1; i++) {
-            if (hand[i].rank + 1 != hand[i+1].rank) {
+            if (hand[i].rank + 1 != hand[i + 1].rank) {
                 is_straight = 0;
                 break;
             }
