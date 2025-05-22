@@ -64,7 +64,7 @@ Having a quartet of 2's on hand, automatically wins the game, regardless of bein
   - [X] server needs to deal cards to players
   - [ ] add general game logic (including bombs, instant win etc.)
   - [X] add turn based card laying by clients (playing cards or passing)
-  - [ ] add score tracking (winning a game adds one point to the respective player)
+  - [X] add score tracking (winning a game adds one point to the respective player)
 
 future:
   - add special message if player won with `3 of aces`
