@@ -82,6 +82,7 @@ int main() {
     }
 
     // TODO: fix duplicate cards (again??)
+    // TODO: add instant win and bomb logic
 
     // initial rendering of userlist
 
