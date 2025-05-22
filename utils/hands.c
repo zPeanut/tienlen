@@ -34,6 +34,17 @@ int get_hand_type(Card *hand, int size) {
         if (is_straight) return STRASSE;
     }
 
+    if (size == 4) {
+        int is_bomb = 1;
+        for (int i = 0; i < size; i++) {
+            if (hand[i].rank != ZWEI) {
+                is_bomb = 0;
+                break;
+            }
+        }
+        if (is_bomb) return BOMB;
+    }
+
     // two pair straight needs at least 6 cards and be even
     if (size >= 6 && size % 2 == 0) {
         int valid = 1;
