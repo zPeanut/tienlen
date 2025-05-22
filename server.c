@@ -178,19 +178,14 @@ void* io_thread(void* arg) {
             }
 
             if (has_dealt) {
-
-                // generate random player between 0 and max_players
-                srand(time(NULL));
-                int random_player = rand() % player_count;
-
-                char str_random_player[2];
-                snprintf(str_random_player, sizeof(str_random_player), "%i", random_player);
+                char str[2];
+                snprintf(str, sizeof(str), "%i", 0);
 
                 for (int i = 0; i < player_count; i++) {
-                    printf("Sent to %s: TURN:%i\n", players[i], random_player);
-                    send_message(client_sockets[i], "TURN", str_random_player);
+                    printf("Sent to %s: TURN:%i\n", players[i], 0);
+                    send_message(client_sockets[i], "TURN", str);
                 }
-                player_at_turn = random_player;
+                player_at_turn = 0;
             }
 
             pthread_mutex_unlock(&player_lock);
@@ -298,14 +293,21 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
             if (client_sockets[i] != -1) {
                 char msg[10] = { 0 };
                 snprintf(msg, sizeof(msg), "%i", winner_index);
+
                 printf("Sent to %s: WIN_HAND:%s\n", players[i], msg);
                 send_message(client_sockets[i], "WIN_HAND", msg);
+
+                printf("Sent to %s: TURN:%s\n", players[i], msg);
                 send_message(client_sockets[i], "TURN", msg);
             }
         }
 
         // reset passes on round win
-        memset(passed_players, 0, max_players * sizeof(int));
+        for (int i = 0; i < max_players; i++) {
+            if (passed_players[i] == 1) {
+                passed_players[i] = 0;
+            }
+        }
     } else {
         for (int i = 0; i < max_players; i++) {
             if (client_sockets[i] != -1) {
@@ -372,6 +374,7 @@ int main() {
     int passed_players[max_players];
     memset(passed_players, 0, sizeof(passed_players));
 
+
     while(running) {
         pthread_mutex_lock(&queue_lock);
 
@@ -400,8 +403,6 @@ int main() {
 
                     passed_players[player_at_turn] = 1;
 
-
-
                     for (int i = 0; i < max_players; i++) {
                         if (client_sockets[i] != -1 && i != player_at_turn) {
                             char msg[10] = { 0 };
@@ -413,6 +414,65 @@ int main() {
 
                     get_next_player(max_players, passed_players, &player_at_turn, players);
 
+                }
+            }
+
+            if (strstr(entry->message.buffer, "WIN_ROUND")) {
+                char* colon = strchr(entry->message.buffer, ':');
+                if (colon) {
+                    int player_who_won = atoi(colon + 1);
+
+                    passed_players[player_who_won] = 2;
+
+                    for (int i = 0; i < max_players; i++) {
+                        if (client_sockets[i] != -1) {
+                            char msg[2] = { 0 };
+                            printf("Sent to %s: WIN_ROUND:%i\n", players[i], player_who_won);
+                            snprintf(msg, sizeof(msg), "%i", player_who_won);
+                            send_message(client_sockets[i], "WIN_ROUND", msg);
+                        }
+                    }
+
+                    // Deal new cards for the next round
+                    pthread_mutex_lock(&player_lock); // Ensure thread-safe access
+
+                    Deck *deck = malloc(sizeof(*deck));
+                    init_deck(deck);
+                    shuffle_deck(deck);
+                    int deck_index = 0;
+
+
+                    for (int i = 0; i < max_players; i++) {
+                        if (client_sockets[i] == -1) continue;
+
+                        char deal_msg[256] = { 0 };
+                        for (int j = 0; j < HAND_SIZE; j++) {
+                            hands[i][j] = deck->cards[deck_index++];
+
+                            char card_str[10];
+                            int suit = hands[i][j].suit;
+                            int rank = hands[i][j].rank;
+                            snprintf(card_str, sizeof(card_str), "%d,%d%c", suit, rank, (j < HAND_SIZE - 1 ? ';' : '\0'));
+                            strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
+                        }
+                        send_message(client_sockets[i], "DEAL", deal_msg);
+                    }
+                    free(deck);
+
+                    // Reset passed players and set next turn
+                    memset(passed_players, 0, sizeof(passed_players));
+                    player_at_turn = player_who_won; // Winner starts the new round
+
+                    // Notify all clients of the new turn
+                    char turn_msg[2];
+                    snprintf(turn_msg, sizeof(turn_msg), "%i", player_at_turn);
+                    for (int i = 0; i < max_players; i++) {
+                        if (client_sockets[i] != -1) {
+                            send_message(client_sockets[i], "TURN", turn_msg);
+                        }
+                    }
+
+                    pthread_mutex_unlock(&player_lock);
                 }
             }
 

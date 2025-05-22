@@ -30,7 +30,8 @@ int main() {
     int hand_type = 0;
     int has_played = 0;                     // keep track if it's your turn or not
     int has_cleared = 0;
-    int has_won = 0;
+    int has_won_hand = 0;
+    int has_won_round = 0;
     int highlight = 0;                      // highlight animation_flag for selected card
     int line_count = 0;                     // line count for window
     char* name;
@@ -79,6 +80,8 @@ int main() {
             client_position = i;
         }
     }
+
+    // TODO: fix duplicate cards (again??)
 
     // initial rendering of userlist
 
@@ -154,6 +157,9 @@ int main() {
             else if (strstr(recv_buffer, "DEAL")) {
                 memset(selected_cards, 0, sizeof(selected_cards)); // reset
                 memset(player_deck, 0, sizeof(player_deck)); // reset
+                memset(received_hand, 0, sizeof(received_hand));
+                received_hand[0].suit = -1;
+
                 hand_size = HAND_SIZE;
                 char *token = strtok(recv_buffer + 5, ";"); // skip prefix
 
@@ -166,8 +172,40 @@ int main() {
                     token = strtok(NULL, ";");
                 }
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
+
+                int count = 0;
+                for (int i = 0; i < hand_size; i++) {
+                    if (player_deck[i].rank == ZWEI) {
+                        count++;
+                    }
+                }
+
+                // TODO: if count == 4, instant win the game (not round!)
+
+                has_won_hand = 0;
                 animation_flag = 0; // enable animation
                 flushinp();
+            }
+
+            else if (strstr(recv_buffer, "WIN_ROUND")) {
+                memset(received_hand, 0, sizeof(received_hand));
+                received_hand[0].suit = -1;
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_won = atoi(colon + 1);
+
+                    char msg[60];
+                    if (client_position == player_who_won) {
+                        snprintf(msg, sizeof(msg), "You won this round!");
+                        has_won_round = 1;
+                        score[client_position]++;
+                    } else {
+                        snprintf(msg, sizeof(msg), "%s has won this round.", players[player_who_won]);
+                        has_won_round = 0;
+                        score[player_who_won]++;
+                    }
+                    add_message(display, msg, &line_count);
+                }
             }
 
             else if (strstr(recv_buffer, "WIN_HAND")) {
@@ -176,16 +214,23 @@ int main() {
                     int player_who_won = atoi(colon + 1);
 
                     char msg[60];
-                    if (client_position == player_who_won) {
+
+                    if (client_position == player_who_won && !has_won_round) {
                         snprintf(msg, sizeof(msg), "You won this hand!");
-                        has_won = 1;
+                        has_won_hand = 1;
+
+                        add_message(display, msg, &line_count);
                     } else {
                         snprintf(msg, sizeof(msg), "%s has won this hand.", players[player_who_won]);
-                        has_won = 0;
+                        has_won_hand = 0;
+
+                        add_message(display, msg, &line_count);
                     }
-                    add_message(display, msg, &line_count);
+
                 }
             }
+
+
 
             else if (strstr(recv_buffer, "PLAYED")) {
                 played_hand_size = 0;
@@ -246,6 +291,17 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
                     }
+                    add_message(display, msg, &line_count);
+                }
+            }
+
+            else if (strstr(recv_buffer, "PASS")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_passed = atoi(colon + 1);
+                    char msg[60];
+                    snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
+                    line_count--;
                     add_message(display, msg, &line_count);
                 }
             }
@@ -512,9 +568,8 @@ int main() {
                         }
 
                         if (any_selected) {
-                            // TODO: fix this logic
-                            if ((has_won && is_valid_hand(played_hand, received_hand, played_hand_size))) {
 
+                            if (get_hand_type(played_hand, played_hand_size) != INVALID && (has_won_hand || received_hand[0].suit == -1 || (get_hand_type(played_hand, played_hand_size) == hand_type && is_hand_higher(played_hand, received_hand, played_hand_size)))) {
 
                                 // VALID HAND
                                 for (int i = 0; i < hand_size; i++) {
@@ -547,8 +602,18 @@ int main() {
 
                                 hand_type = get_hand_type(played_hand, played_hand_size);
                                 memset(selected_cards, 0, hand_size * sizeof(int));
-                                if (highlight > hand_size) highlight = hand_size - 1;
-                                has_played = 1;
+
+                                if (hand_size > 0) {
+                                    if (highlight > hand_size - 1) highlight = 0;
+                                    has_played = 1;
+                                } else if (hand_size == 0) {
+                                    char msg[2] = { 0 };
+                                    snprintf(msg, sizeof(msg), "%i", client_position);
+                                    send_message(sock, "WIN_ROUND", msg);
+                                    has_won_round = 1;
+                                    has_played = 1;
+                                }
+
                             } else if (!is_valid_hand(played_hand, received_hand, played_hand_size)) {
                                 // INVALID HAND
                                 line_count--;

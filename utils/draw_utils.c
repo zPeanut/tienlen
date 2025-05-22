@@ -47,9 +47,13 @@ void draw_user_list(int width, int height, int line_x, int player_count, int* sc
     for (int i = 0; i < player_count; i++) {
         if (strlen(players[i]) > 0) {
             if (strcmp(players[i], name) == 0) wattron(win, COLOR_PAIR(CYAN));
+
+            char sc_str[4]; // unlikely score ever reaches 100+ but w/e
+            snprintf(sc_str, sizeof(sc_str), "%i", score[i]);
+
             mvwprintw(win, 5 + i * 2, 2, "%s", players[i]);
             wattroff(win, COLOR_PAIR(CYAN));
-            mvwprintw(win, 5 + i * 2, width - line_x - 3, "%i", score[i]);
+            mvwprintw(win, 5 + i * 2, width - line_x - 3 - strlen(sc_str), "%s", sc_str);
         }
     }
 }
