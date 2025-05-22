@@ -59,14 +59,13 @@ int main() {
 
     int height = y_max - 7;
     int width = x_max - 10;
+    int line_x = 3 * (width / 4); // 3/4th of the screen
     WINDOW *win_hand = newwin(0, width, height, 5); // client hand
-    WINDOW *win_server = newwin(height, width, 0, 5); // server messages
-    WINDOW *win_user = newwin(height, width, 0, 5); // connected users
+    WINDOW *win_server = newwin(height, line_x, 0, 5); // server messages
+    WINDOW *win_user = newwin(height, width - line_x, 0, line_x + 5); // connected users
     box(win_hand, 0, 0);
     box(win_server, 0, 0);
     box(win_user, 0, 0);
-
-
 
     int win_height, win_width;
     getmaxyx(win_hand, win_height, win_width);
@@ -79,7 +78,6 @@ int main() {
     }
 
     // initial rendering of userlist
-    int line_x = 3 * (width / 4); // 3/4th of the screen
 
     draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
     for (int i = 0; i < NUM_PLAYERS; i++) {
@@ -136,7 +134,11 @@ int main() {
                 all_players_connected = (waiting_player_count == player_count);
                 if (!all_players_connected) has_cleared = 0;
 
-                wnoutrefresh(win_user); // queue for refresh
+                // Redraw ONLY the user list window
+                werase(win_user);
+                box(win_user, 0, 0);
+                draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
+                wrefresh(win_user); // Refresh explicitly
             }
 
             else if (strstr(recv_buffer, "AMOUNT")) {
@@ -371,6 +373,13 @@ int main() {
 
 
         // draw messages
+        werase(win_server);  // Clear entire window
+        box(win_server, 0, 0);  // Redraw border
+
+        snprintf(str, sizeof(str), "%i", played_hand_size);
+        snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
+        mvwprintw(win_server, 0, 2, "%s", hand_type_str);
+
         for (int i = 0; i < line_count; ++i) {
             int y1 = i * 2 + 2; // +1 offset if box border exists
 
@@ -405,6 +414,7 @@ int main() {
                         is_card = 1;
                     }
                 }
+
 
                 if (is_card) wattron(win_server, color_pair);
                 mvwprintw(win_server, y1, current_x, "%s", token);
@@ -457,6 +467,7 @@ int main() {
                 turn = 0;
             }
         }
+        wrefresh(win_user);
         wrefresh(win_server);
         // --- END GAME LOGIC ---
 

@@ -36,15 +36,10 @@ void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int
 }
 
 void draw_user_list(int width, int height, int line_x, int player_count, int* score, char* name, char (*players)[MAX_NAME_LENGTH], WINDOW *win) {
-    mvwprintw(win, 2, line_x + 2, "Connected Users:");
-
-    // draw vertical line for connected users
-    for (int i = 1; i < height - 1; i++) {
-        mvwaddch(win, i, line_x, ACS_VLINE);
-    }
+    mvwprintw(win, 2, 2, "Connected Users:");
 
     // draw underline
-    for (int i = line_x + 2; i < width - 2; i++) {
+    for (int i = 2; i < width - line_x - 2; i++) {
         mvwaddch(win, 3, i, ACS_HLINE);
     }
 
@@ -52,17 +47,27 @@ void draw_user_list(int width, int height, int line_x, int player_count, int* sc
     for (int i = 0; i < player_count; i++) {
         if (strlen(players[i]) > 0) {
             if (strcmp(players[i], name) == 0) wattron(win, COLOR_PAIR(CYAN));
-            mvwprintw(win, 5 + i * 2, line_x + 2, "%s", players[i]);
+            mvwprintw(win, 5 + i * 2, 2, "%s", players[i]);
             wattroff(win, COLOR_PAIR(CYAN));
-            mvwprintw(win, 5 + i * 2, width - 3, "%i", score[i]);
+            mvwprintw(win, 5 + i * 2, width - line_x - 3, "%i", score[i]);
         }
     }
 }
 
 void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count) {
-    strncpy(messages[*line_count], buf, MAX_MESSAGE_LENGTH - 1);
-    messages[*line_count][MAX_MESSAGE_LENGTH - 1] = '\0';
-    (*line_count)++;
+
+    if (*line_count < 10) {
+        strncpy(messages[*line_count], buf, MAX_MESSAGE_LENGTH - 1);
+        messages[*line_count][MAX_MESSAGE_LENGTH - 1] = '\0';
+        (*line_count)++;
+    } else {
+        for (int i = 0; i < 10; i++) {
+            strncpy(messages[i - 1], messages[i], MAX_MESSAGE_LENGTH - 1);
+        }
+
+        strncpy(messages[9], buf, MAX_MESSAGE_LENGTH - 1);
+        messages[9][MAX_MESSAGE_LENGTH] = '\0';
+    }
 }
 
 int setup_ncurses_ui() {
