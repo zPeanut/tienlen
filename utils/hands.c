@@ -34,15 +34,16 @@ int get_hand_type(Card *hand, int size) {
         if (is_straight) return STRASSE;
     }
 
+    // TODO: this isnt actually a bomb, this is an instant win but ill have to change this later
     if (size == 4) {
-        int is_bomb = 1;
+        int is_instant_win = 1;
         for (int i = 0; i < size; i++) {
             if (hand[i].rank != ZWEI) {
-                is_bomb = 0;
+                is_instant_win = 0;
                 break;
             }
         }
-        if (is_bomb) return BOMB;
+        if (is_instant_win) return WIN;
     }
 
     // two pair straight needs at least 6 cards and be even
@@ -66,10 +67,64 @@ int get_hand_type(Card *hand, int size) {
     return INVALID;
 }
 
-int is_valid_hand(Card* hand, int size) {
-    return get_hand_type(hand, size) != INVALID;
+int is_valid_hand(Card *hand1, Card *hand2, int size) {
+    return (get_hand_type(hand1, size) != INVALID) && (get_hand_type(hand1, size) == get_hand_type(hand2, size));
 }
 
-int is_hand_higher(Card* hand1, Card* hand2, int size) {
-    return (hand1[size].suit > hand2[size].suit);
+int compare_ranks(Rank rank1, Rank rank2) {
+    return rank1 > rank2;
 }
+
+int compare_suits(Suit suit1, Suit suit2) {
+    return suit1 > suit2;
+}
+
+int compare_cards(Card card1, Card card2) {
+    if (card1.rank != card2.rank) return compare_ranks(card1.rank, card2.rank);
+    return compare_suits(card1.suit, card2.suit);
+}
+
+Suit get_max_suit(Card* hand, int size) {
+    Suit max = hand[0].suit;
+    for (int i = 1; i < size; i++)
+        if (hand[i].suit > max) max = hand[i].suit;
+    return max;
+}
+
+Card get_highest_card(Card* hand, int size) {
+    Card highest = hand[0];
+    for (int i = 1; i < size; i++)
+        if (compare_cards(hand[i], highest))
+            highest = hand[i];
+    return highest;
+}
+
+int is_hand_higher(Card *hand1, Card *hand2, int size) {
+    Hand type1 = get_hand_type(hand1, size);
+    Hand type2 = get_hand_type(hand2, size);
+
+    if (type1 == BOMB || type2 == BOMB) {
+        if (type1 == BOMB && type2 != BOMB) return 1;
+        if (type2 == BOMB && type1 != BOMB) return 0;
+        return compare_ranks(hand1[0].rank, hand2[0].rank);
+    }
+
+    if (type1 != type2) return 0;
+
+    if (type1 == HIGH) {
+        return compare_cards(hand1[0], hand2[0]);
+    } else if (type1 == PAIR || type1 == TRIPS) {
+        if (hand1[0].rank != hand2[0].rank)
+            return compare_ranks(hand1[0].rank, hand2[0].rank);
+        // Compare highest suit in the group
+        return compare_suits(get_max_suit(hand1, size), get_max_suit(hand2, size));
+    } else if (type1 == STRASSE) {
+        Card highest1 = get_highest_card(hand1, size);
+        Card highest2 = get_highest_card(hand2, size);
+        return compare_cards(highest1, highest2);
+    }
+
+    return 0;
+}
+
+

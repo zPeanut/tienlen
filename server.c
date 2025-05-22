@@ -211,6 +211,9 @@ void* io_thread(void* arg) {
                     close(client_sockets[i]);
                     client_sockets[i] = -1;
 
+                    memset(players[i], 0, MAX_NAME_LENGTH);       // reset name
+                    memset(hands[i], 0, sizeof(Card) * HAND_SIZE); // reset hand
+
                     // make updated player lists (after disconnects)
                     char player_list_dc[256] = { 0 };
                     for (int j = 0; j < player_count; j++) {

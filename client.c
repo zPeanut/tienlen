@@ -30,6 +30,7 @@ int main() {
     int hand_type = 0;
     int has_played = 0;                     // keep track if it's your turn or not
     int has_cleared = 0;
+    int has_won = 0;
     int highlight = 0;                      // highlight animation_flag for selected card
     int line_count = 0;                     // line count for window
     char* name;
@@ -45,8 +46,10 @@ int main() {
     int turn = 0;                           // turn check animation_flag
     int waiting_dots_index = 0;
 
-    Card player_deck[hand_size]; // current win_hand
-    Card played_hand[hand_size]; // has_played win_hand (on turn)
+    Card player_deck[hand_size]; // current hand
+    player_deck[0].suit = -1;
+    Card played_hand[hand_size]; // hand played on turn
+    Card received_hand[HAND_SIZE] = { -1 }; // hand played by others
     memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_server are inside it
     // ---- END VARIABLE DECLARATION ----
 
@@ -150,6 +153,8 @@ int main() {
 
             else if (strstr(recv_buffer, "DEAL")) {
                 memset(selected_cards, 0, sizeof(selected_cards)); // reset
+                memset(player_deck, 0, sizeof(player_deck)); // reset
+                hand_size = HAND_SIZE;
                 char *token = strtok(recv_buffer + 5, ";"); // skip prefix
 
                 for (int i = 0; i < hand_size && token; i++) {
@@ -173,8 +178,10 @@ int main() {
                     char msg[60];
                     if (client_position == player_who_won) {
                         snprintf(msg, sizeof(msg), "You won this hand!");
+                        has_won = 1;
                     } else {
                         snprintf(msg, sizeof(msg), "%s has won this hand.", players[player_who_won]);
+                        has_won = 0;
                     }
                     add_message(display, msg, &line_count);
                 }
@@ -182,6 +189,7 @@ int main() {
 
             else if (strstr(recv_buffer, "PLAYED")) {
                 played_hand_size = 0;
+                memset(received_hand, 0, sizeof(received_hand));
                 char *colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_who_played = atoi(colon + 1);
@@ -191,7 +199,6 @@ int main() {
                     snprintf(msg, sizeof(msg), "%s played: ", players[player_who_played]);
 
                     char *card = strtok(cards_start, ";");
-                    Card received_hand[HAND_SIZE] = { 0 };
                     int index = 0;
                     while (card) {
                         int suit, rank;
@@ -505,7 +512,10 @@ int main() {
                         }
 
                         if (any_selected) {
-                            if (is_valid_hand(played_hand, played_hand_size)) {
+                            // TODO: fix this logic
+                            if ((has_won && is_valid_hand(played_hand, received_hand, played_hand_size))) {
+
+
                                 // VALID HAND
                                 for (int i = 0; i < hand_size; i++) {
                                     if (!selected_cards[i]) {
@@ -539,10 +549,15 @@ int main() {
                                 memset(selected_cards, 0, hand_size * sizeof(int));
                                 if (highlight > hand_size) highlight = hand_size - 1;
                                 has_played = 1;
-                            } else {
+                            } else if (!is_valid_hand(played_hand, received_hand, played_hand_size)) {
                                 // INVALID HAND
                                 line_count--;
                                 add_message(display, "Invalid hand!", &line_count);
+                                memset(selected_cards, 0, hand_size * sizeof(int));
+                            } else {
+                                // NOT HIGH ENOUGH HAND
+                                line_count--;
+                                add_message(display, "Hand is not higher than previous hand!", &line_count);
                                 memset(selected_cards, 0, hand_size * sizeof(int));
                             }
                         } else {
@@ -552,7 +567,6 @@ int main() {
                             send_message(sock, "PASS", buf);
                             has_played = 1;
                         }
-
                     }
                 }
                     break;
