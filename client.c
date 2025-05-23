@@ -38,6 +38,7 @@ int main() {
     int played_hand_size = 0;
     int player_count;
     char players[NUM_PLAYERS][MAX_NAME_LENGTH] = { 0 };
+    int received_hand_size = 0;
     static char recv_buffer[4096] = { 0 };  // global buffer to collect data
     static size_t recv_buffer_len = 0;      // track buffer length
     int score[NUM_PLAYERS] = { 0 };         // track score on won round
@@ -82,8 +83,6 @@ int main() {
         }
     }
 
-    // TODO: add bomb logic
-    // TODO: fix card laying logic (AGAIN)
     // TODO: not resetting round after win, losing player needs turn first
 
     // initial rendering of userlist
@@ -262,7 +261,7 @@ int main() {
 
 
             else if (strstr(recv_buffer, "PLAYED")) {
-                played_hand_size = 0;
+                received_hand_size = 0;
                 memset(received_hand, 0, sizeof(received_hand));
                 char *colon = strchr(recv_buffer, ':');
                 if (colon) {
@@ -281,7 +280,7 @@ int main() {
                         Card temp_card = { (Suit) suit, (Rank) rank };
                         received_hand[index++] = temp_card;
 
-                        played_hand_size++;
+                        received_hand_size++;
                         char *card_str = return_card(temp_card);
                         strncat(msg, card_str, sizeof(msg) - strlen(msg) - 1);
                         strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
@@ -291,8 +290,8 @@ int main() {
                     }
                     hand_type = get_hand_type(received_hand, index);
 
-                    if (hand_type == STRASSE) {
-                        straight_length = played_hand_size;
+                    if (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE) {
+                        straight_length = (hand_type == ZWEI_PAAR_STRASSE) ? received_hand_size / 2 : received_hand_size;
                     }
 
                     line_count--;
@@ -460,7 +459,7 @@ int main() {
         char str[3];
 
         snprintf(str, sizeof(str), "%i", straight_length);
-        snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
+        snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ", (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str : ""), (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? "er " : ""), return_hand_type(hand_type));
 
         if (strstr(hand_type_str, "Unbekannt") != NULL) wattron(win_server, COLOR_PAIR(WHITE));
         if (strstr(hand_type_str, "High Card") != NULL) wattron(win_server, COLOR_PAIR(RED));
@@ -468,7 +467,7 @@ int main() {
         if (strstr(hand_type_str, "Trips") != NULL) wattron(win_server, COLOR_PAIR(YELLOW));
         if (strstr(hand_type_str, "Quads") != NULL) wattron(win_server, COLOR_PAIR(GREEN));
         if (strstr(hand_type_str, "Straße") != NULL) wattron(win_server, COLOR_PAIR(BLUE));
-        if (strstr(hand_type_str, "Zweier Straße") != NULL) wattron(win_server, COLOR_PAIR(PURPLE));
+        if (strstr(hand_type_str, "Zwei-Paar Straße") != NULL) wattron(win_server, COLOR_PAIR(PURPLE));
 
         mvwprintw(win_server, 0, 2, "%s", hand_type_str);
 
@@ -538,7 +537,7 @@ int main() {
 
         if (turn) {
             if (has_played) {
-                char display_msg[70] = { 0 };
+                char display_msg[90] = { 0 };
 
                 if (any_selected) {
                     mvwhline(win_server, 4, 2, ' ', line_x - 2);
@@ -606,12 +605,17 @@ int main() {
 
                         if (any_selected) {
 
-                            if (get_hand_type(played_hand, played_hand_size) != INVALID && (has_won_hand || received_hand[0].suit == -1 || (get_hand_type(played_hand, played_hand_size) == hand_type && is_hand_higher(played_hand, received_hand, played_hand_size)))) {
+                            if (get_hand_type(played_hand, played_hand_size) != INVALID &&
+                                (has_won_hand || received_hand[0].suit == -1 ||
+                                 (is_valid_hand(played_hand, received_hand, played_hand_size, received_hand_size) &&
+                                  is_hand_higher(played_hand, received_hand, played_hand_size, received_hand_size)))) {
+                                // Proceed to play the hand
 
                                 // VALID HAND
 
-                                if (get_hand_type(played_hand, played_hand_size) == STRASSE || get_hand_type(received_hand, played_hand_size) == STRASSE) {
-                                    straight_length = played_hand_size;
+                                int current_hand_type = get_hand_type(played_hand, played_hand_size);
+                                if (current_hand_type == STRASSE || current_hand_type == ZWEI_PAAR_STRASSE) {
+                                    straight_length = (current_hand_type == ZWEI_PAAR_STRASSE) ? (played_hand_size / 2) : played_hand_size;
                                 }
 
                                 for (int i = 0; i < hand_size; i++) {
@@ -642,7 +646,7 @@ int main() {
                                 }
                                 send_message(sock, "PLAYED", played_msg);
 
-                                hand_type = get_hand_type(played_hand, played_hand_size);
+                                hand_type = current_hand_type;
                                 memset(selected_cards, 0, hand_size * sizeof(int));
 
                                 if (hand_size > 0) {
@@ -656,7 +660,7 @@ int main() {
                                     has_played = 1;
                                 }
 
-                            } else if (!is_valid_hand(played_hand, received_hand, played_hand_size)) {
+                            } else if (!is_valid_hand(played_hand, received_hand, played_hand_size, received_hand_size)) {
                                 // INVALID HAND
                                 line_count--;
                                 add_message(display, "Invalid hand!", &line_count);

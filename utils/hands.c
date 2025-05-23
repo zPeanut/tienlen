@@ -10,7 +10,7 @@
 
 char* return_hand_type(int type) {
     char* s = malloc(16);
-    const char* rank_names[] = { "Unbekannt", "High Card", "Paar", "Trips", "Quads", "Straße", "Zweier Straße" };
+    const char* rank_names[] = { "Unbekannt", "High Card", "Paar", "Trips", "Quads", "Straße", "Zwei-Paar Straße" };
     sprintf(s, "%s", rank_names[type]);
     return s;
 }
@@ -34,18 +34,6 @@ int get_hand_type(Card *hand, int size) {
         if (is_straight) return STRASSE;
     }
 
-    // TODO: this isnt actually a bomb, this is an instant win but ill have to change this later
-    if (size == 4) {
-        int is_instant_win = 1;
-        for (int i = 0; i < size; i++) {
-            if (hand[i].rank != ZWEI) {
-                is_instant_win = 0;
-                break;
-            }
-        }
-        if (is_instant_win) return WIN;
-    }
-
     // two pair straight needs at least 6 cards and be even
     if (size >= 6 && size % 2 == 0) {
         int valid = 1;
@@ -61,14 +49,64 @@ int get_hand_type(Card *hand, int size) {
                 break;
             }
         }
-        if (valid) return ZWEIER_STRASSE;
+        if (valid) return ZWEI_PAAR_STRASSE;
     }
 
     return INVALID;
 }
 
-int is_valid_hand(Card *hand1, Card *hand2, int size) {
-    return (get_hand_type(hand1, size) != INVALID) && (get_hand_type(hand1, size) == get_hand_type(hand2, size));
+// check if all selected cards are rank two
+int is_hand_two(Card *hand, int size) {
+    for (int i = 0; i < size; i++) {
+        if (hand[i].rank != ZWEI) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int is_valid_hand(Card *hand1, Card *hand2, int size1, int size2) {
+    int type1 = get_hand_type(hand1, size1);
+    int type2 = get_hand_type(hand2, size2);
+
+    if (type1 == INVALID || type2 == INVALID) {
+        return 0;
+    }
+
+    if (type1 == type2) {
+        return 1;
+    }
+
+    int hand1_is_bomb = (type1 == QUADS) || (type1 == ZWEI_PAAR_STRASSE);
+    int is_hand2_two = 0;
+    int hand2_type = 0;
+
+    if (type2 == HIGH && is_hand_two(hand2, size2)) {
+        is_hand2_two = 1;
+        hand2_type = HIGH;
+    } else if (type2 == PAIR && is_hand_two(hand2, size2)) {
+        is_hand2_two = 1;
+        hand2_type = PAIR;
+    } else if (type2 == TRIPS && is_hand_two(hand2, size2)) {
+        is_hand2_two = 1;
+        hand2_type = TRIPS;
+    }
+
+    if (hand1_is_bomb && is_hand2_two) {
+        if (type1 == QUADS) {
+            return hand2_type != TRIPS; // quads beat high card / pair of twos but not trips of two
+        } else if (type1 == ZWEI_PAAR_STRASSE) {
+
+            int num_pairs = size1 / 2;
+            switch (hand2_type) {
+                case HIGH: return num_pairs >= 3; // high card of two needs 3 pairs
+                case PAIR: return num_pairs >= 4; // ...needs 4 pairs
+                case TRIPS: return num_pairs >= 5; // ...needs 5 pairs
+                default:
+            }
+        }
+    }
+    return 0;
 }
 
 int compare_ranks(Rank rank1, Rank rank2) {
@@ -100,34 +138,46 @@ Card get_highest_card(Card* hand, int size) {
     return highest;
 }
 
-int is_hand_higher(Card *hand1, Card *hand2, int size) {
-    Hand type1 = get_hand_type(hand1, size);
-    Hand type2 = get_hand_type(hand2, size);
+int is_hand_higher(Card *hand1, Card *hand2, int size1, int size2) {
+    Hand type1 = get_hand_type(hand1, size1);
+    Hand type2 = get_hand_type(hand2, size2);
 
-    if (type1 == BOMB || type2 == BOMB) {
-        if (type1 == BOMB && type2 != BOMB) return 1;
-        if (type2 == BOMB && type1 != BOMB) return 0;
-        return compare_ranks(hand1[0].rank, hand2[0].rank);
+    if (type1 != type2) {
+        int hand1_is_bomb = (type1 == QUADS) || (type1 == ZWEI_PAAR_STRASSE);
+        int hand2_is_zwei = 0;
+
+        if (type2 == HIGH && is_hand_two(hand2, size2) || type2 == PAIR && is_hand_two(hand2, size2) || type2 == TRIPS && is_hand_two(hand2, size2)) {
+            hand2_is_zwei = 1;
+        }
+
+        if (hand1_is_bomb && hand2_is_zwei) {
+            return 1; // bomb higher if valid
+        }
+        return 0;
     }
 
-    if (type1 != type2) return 0;
-
     if (type1 == HIGH) {
-        return compare_cards(hand1[0], hand2[0]);
+        if (hand1[0].rank == ZWEI && hand2[0].rank == ZWEI) {
+            return compare_suits(hand1[0].suit, hand2[0].suit);
+        } else if (hand1[0].rank == ZWEI) {
+            return 1;
+        } else if (hand2[0].rank == ZWEI) {
+            return 0;
+        } else {
+            return compare_ranks(hand1[0].rank, hand2[0].rank);
+        }
     } else if (type1 == PAIR || type1 == TRIPS) {
-
         if (hand1[0].rank != hand2[0].rank) {
             return compare_ranks(hand1[0].rank, hand2[0].rank);
         }
 
-        // compare highest suit in the group
-        return compare_suits(get_max_suit(hand1, size), get_max_suit(hand2, size));
+        return compare_suits(get_max_suit(hand1, size1), get_max_suit(hand2, size2));
     } else if (type1 == STRASSE) {
-        Card highest1 = get_highest_card(hand1, size);
-        Card highest2 = get_highest_card(hand2, size);
+        Card highest1 = get_highest_card(hand1, size1);
+        Card highest2 = get_highest_card(hand2, size2);
+
         return compare_cards(highest1, highest2);
     }
-
     return 0;
 }
 
