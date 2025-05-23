@@ -21,9 +21,8 @@ void init_deck(Deck *deck) {
 
 // fisher yates algorithm
 void shuffle_deck(Deck *deck) {
-    srand(time(NULL));
     for (int i = 0; i < NUM_CARDS; i++) {
-        int j = i + (rand() % (53 - i));
+        int j = i + (rand() % (NUM_CARDS - i)); // Use NUM_CARDS instead of 53
         Card temp = deck->cards[i];
         deck->cards[i] = deck->cards[j];
         deck->cards[j] = temp;

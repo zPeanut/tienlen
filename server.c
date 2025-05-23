@@ -441,7 +441,6 @@ int main() {
                     shuffle_deck(deck);
                     int deck_index = 0;
 
-
                     for (int i = 0; i < max_players; i++) {
                         if (client_sockets[i] == -1) continue;
 
