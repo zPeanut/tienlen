@@ -214,7 +214,7 @@ void* io_thread(void* arg) {
                     for (int j = 0; j < player_count; j++) {
                         if (client_sockets[j] != -1) { // only include connected players
                             strncat(player_list_dc, players[j], strlen(players[j]));
-                            if (j < waiting_player_count - 1) strncat(player_list_dc, ",", 2);
+                            strncat(player_list_dc, ",", 4);
                         }
                     }
                     player_list_dc[strlen(player_list_dc)] = '\0';
