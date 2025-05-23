@@ -43,6 +43,7 @@ int main() {
     int score[NUM_PLAYERS] = { 0 };         // track score on won round
     int selected_cards[hand_size];          // array of flags - checks if card at index is highlighted to be has_played
     int sock = setup_connection(8, players, &player_count, &name);  // setup client connection to server
+    int straight_length = 0;
     int total_len;                          // total length of win_hand (used for centering)
     int turn = 0;                           // turn check animation_flag
     int waiting_dots_index = 0;
@@ -83,6 +84,8 @@ int main() {
 
     // TODO: fix duplicate cards (again??)
     // TODO: add instant win and bomb logic
+    // TODO: fix card laying logic (AGAIN)
+    // TODO: not resetting round after win, losing player needs turn first
 
     // initial rendering of userlist
 
@@ -262,6 +265,11 @@ int main() {
                         card = strtok(NULL, ";");
                     }
                     hand_type = get_hand_type(received_hand, index);
+
+                    if (hand_type == STRASSE) {
+                        straight_length = played_hand_size;
+                    }
+
                     line_count--;
                     add_message(display, msg, &line_count);
                 }
@@ -271,19 +279,6 @@ int main() {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon) {
                     int player_at_turn = atoi(colon + 1);
-
-                    int win_y, win_x;
-                    getmaxyx(win_server, win_y, win_x);
-                    mvwhline(win_server, 0, 1, ACS_HLINE, win_x - 2);
-
-                    char hand_type_str[50] = {0};
-                    char str[3];
-                    snprintf(str, sizeof(str), "%i", played_hand_size);
-                    snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
-                    mvwprintw(win_server, 0, 2, "%s", hand_type_str);
-
-
-                    wrefresh(win_server);
 
                     char msg[40] = { 0 };
                     if (player_at_turn == client_position) {
@@ -335,11 +330,7 @@ int main() {
 
         // win_user loop
         draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
-        char hand_type_str[50] = {0};
-        char str[3];
-        snprintf(str, sizeof(str), "%i", played_hand_size);
-        snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
-        mvwprintw(win_server, 0, 2, "%s", hand_type_str);
+
 
         // waiting room
         if (!all_players_connected) {
@@ -440,9 +431,29 @@ int main() {
         werase(win_server);  // Clear entire window
         box(win_server, 0, 0);  // Redraw border
 
-        snprintf(str, sizeof(str), "%i", played_hand_size);
-        snprintf(hand_type_str, sizeof(hand_type_str), " hand type: %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
+        char hand_type_str[50] = {0};
+        char str[3];
+
+        snprintf(str, sizeof(str), "%i", straight_length);
+        snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ", (hand_type == STRASSE ? str : ""), (hand_type == STRASSE ? "er-" : ""), return_hand_type(hand_type));
+
+        if (strstr(hand_type_str, "Unbekannt") != NULL) wattron(win_server, COLOR_PAIR(WHITE));
+        if (strstr(hand_type_str, "High Card") != NULL) wattron(win_server, COLOR_PAIR(RED));
+        if (strstr(hand_type_str, "Paar") != NULL) wattron(win_server, COLOR_PAIR(ORANGE));
+        if (strstr(hand_type_str, "Trips") != NULL) wattron(win_server, COLOR_PAIR(YELLOW));
+        if (strstr(hand_type_str, "Quads") != NULL) wattron(win_server, COLOR_PAIR(GREEN));
+        if (strstr(hand_type_str, "Straße") != NULL) wattron(win_server, COLOR_PAIR(BLUE));
+        if (strstr(hand_type_str, "Zweier Straße") != NULL) wattron(win_server, COLOR_PAIR(PURPLE));
+
         mvwprintw(win_server, 0, 2, "%s", hand_type_str);
+
+        wattroff(win_server, COLOR_PAIR(WHITE));
+        wattroff(win_server, COLOR_PAIR(RED));
+        wattroff(win_server, COLOR_PAIR(ORANGE));
+        wattroff(win_server, COLOR_PAIR(YELLOW));
+        wattroff(win_server, COLOR_PAIR(GREEN));
+        wattroff(win_server, COLOR_PAIR(BLUE));
+        wattroff(win_server, COLOR_PAIR(PURPLE));
 
         for (int i = 0; i < line_count; ++i) {
             int y1 = i * 2 + 2; // +1 offset if box border exists
@@ -573,6 +584,11 @@ int main() {
                             if (get_hand_type(played_hand, played_hand_size) != INVALID && (has_won_hand || received_hand[0].suit == -1 || (get_hand_type(played_hand, played_hand_size) == hand_type && is_hand_higher(played_hand, received_hand, played_hand_size)))) {
 
                                 // VALID HAND
+
+                                if (get_hand_type(played_hand, played_hand_size) == STRASSE || get_hand_type(received_hand, played_hand_size) == STRASSE) {
+                                    straight_length = played_hand_size;
+                                }
+
                                 for (int i = 0; i < hand_size; i++) {
                                     if (!selected_cards[i]) {
                                         player_deck[new_index++] = player_deck[i];
@@ -637,7 +653,6 @@ int main() {
                 }
                     break;
                 default:
-                    goto end;
             }
         }
         doupdate();
