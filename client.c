@@ -29,7 +29,7 @@ int main() {
     int hand_size = HAND_SIZE;              // max win_hand size (always 13, even if fewer than 4 players are connected)
     int hand_type = 0;
     int has_played = 0;                     // keep track if it's your turn or not
-    int has_cleared = 0;
+    int has_cleared = 0;                    // check if server window has been cleared
     int has_won_hand = 0;
     int has_won_round = 0;
     int highlight = 0;                      // highlight animation_flag for selected card
@@ -82,8 +82,7 @@ int main() {
         }
     }
 
-    // TODO: fix duplicate cards (again??)
-    // TODO: add instant win and bomb logic
+    // TODO: add bomb logic
     // TODO: fix card laying logic (AGAIN)
     // TODO: not resetting round after win, losing player needs turn first
 
@@ -163,6 +162,7 @@ int main() {
                 memset(player_deck, 0, sizeof(player_deck)); // reset
                 memset(received_hand, 0, sizeof(received_hand));
                 received_hand[0].suit = -1;
+                has_won_round = 0;
 
                 hand_size = HAND_SIZE;
                 char *token = strtok(recv_buffer + 5, ";"); // skip prefix
@@ -184,11 +184,36 @@ int main() {
                     }
                 }
 
-                // TODO: if count == 4, instant win the game (not round!)
+                if (count == 4) {
+                    char msg[2] = { 0 };
+                    snprintf(msg, sizeof(msg), "%i", client_position);
+                    send_message(sock, "INSTANT_WIN", msg);
+                }
 
                 has_won_hand = 0;
                 animation_flag = 0; // enable animation
                 flushinp();
+            }
+
+            else if (strstr(recv_buffer, "INSTANT_WIN")) {
+                memset(received_hand, 0, sizeof(received_hand));
+                received_hand[0].suit = -1;
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_won = atoi(colon + 1);
+
+                    char msg[90];
+                    if (client_position == player_who_won) {
+                        snprintf(msg, sizeof(msg), "You won this round due to having four 2's on hand!");
+                        has_won_round = 1;
+                        score[client_position]++;
+                    } else {
+                        snprintf(msg, sizeof(msg), "%s has won this round due to having four 2's on hand.", players[player_who_won]);
+                        has_won_round = 0;
+                        score[player_who_won]++;
+                    }
+                    add_message(display, msg, &line_count);
+                }
             }
 
             else if (strstr(recv_buffer, "WIN_ROUND")) {
@@ -198,7 +223,7 @@ int main() {
                 if (colon) {
                     int player_who_won = atoi(colon + 1);
 
-                    char msg[60];
+                    char msg[90];
                     if (client_position == player_who_won) {
                         snprintf(msg, sizeof(msg), "You won this round!");
                         has_won_round = 1;

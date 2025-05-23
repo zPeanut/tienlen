@@ -417,7 +417,7 @@ int main() {
                 }
             }
 
-            if (strstr(entry->message.buffer, "WIN_ROUND")) {
+            if (strstr(entry->message.buffer, "WIN_ROUND") || strstr(entry->message.buffer, "INSTANT_WIN")) {
                 char* colon = strchr(entry->message.buffer, ':');
                 if (colon) {
                     int player_who_won = atoi(colon + 1);
@@ -427,9 +427,16 @@ int main() {
                     for (int i = 0; i < max_players; i++) {
                         if (client_sockets[i] != -1) {
                             char msg[2] = { 0 };
-                            printf("Sent to %s: WIN_ROUND:%i\n", players[i], player_who_won);
                             snprintf(msg, sizeof(msg), "%i", player_who_won);
-                            send_message(client_sockets[i], "WIN_ROUND", msg);
+
+                            if (strstr(entry->message.buffer, "INSTANT_WIN")) {
+                                printf("Sent to %s: INSTANT_WIN:%i\n", players[i], player_who_won);
+                                send_message(client_sockets[i], "INSTANT_WIN", msg);
+
+                            } else if (strstr(entry->message.buffer, "WIN_ROUND")) {
+                                printf("Sent to %s: WIN_ROUND:%i\n", players[i], player_who_won);
+                                send_message(client_sockets[i], "WIN_ROUND", msg);
+                            }
                         }
                     }
 
