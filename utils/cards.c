@@ -41,7 +41,7 @@ int compare_by_rank(const void *a, const void *b) {
 }
 
 char* return_card(Card card) {
-    char* s = malloc(8);
+    char* s = malloc(5);
     const char* suit_names[] = {"♠", "♣", "♦", "♥"};
     const char* rank_names[] = {"3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"};
     sprintf(s, "%s%s", rank_names[card.rank], suit_names[card.suit]);

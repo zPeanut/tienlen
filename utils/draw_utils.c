@@ -94,7 +94,11 @@ int setup_ncurses_ui() {
     init_pair(BLUE, COLOR_CYAN, COLOR_BLACK);       // clubs
     init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);   // diamonds
     init_pair(RED, COLOR_RED, COLOR_BLACK);         // hearts
-    init_pair(CYAN, 14, COLOR_BLACK);       // connected user
+
+    init_pair(GREEN, 10, COLOR_BLACK);              // straight
+    init_pair(ORANGE, 11, COLOR_BLACK);             // pair
+    init_pair(PURPLE, 13, COLOR_BLACK);             // two pair straight
+    init_pair(CYAN, 14, COLOR_BLACK);               // connected user
 
     return 0;
 }

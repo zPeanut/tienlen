@@ -26,5 +26,8 @@
 #define YELLOW 3
 #define RED 4
 #define CYAN 5
+#define ORANGE 6
+#define GREEN 7
+#define PURPLE 8
 
 #endif //TIENLEN_MACROS_H

@@ -86,16 +86,17 @@ int compare_cards(Card card1, Card card2) {
 
 Suit get_max_suit(Card* hand, int size) {
     Suit max = hand[0].suit;
-    for (int i = 1; i < size; i++)
+    for (int i = 1; i < size; i++) {
         if (hand[i].suit > max) max = hand[i].suit;
+    }
     return max;
 }
 
 Card get_highest_card(Card* hand, int size) {
     Card highest = hand[0];
-    for (int i = 1; i < size; i++)
-        if (compare_cards(hand[i], highest))
-            highest = hand[i];
+    for (int i = 1; i < size; i++) {
+        if (compare_cards(hand[i], highest)) highest = hand[i];
+    }
     return highest;
 }
 
@@ -114,9 +115,12 @@ int is_hand_higher(Card *hand1, Card *hand2, int size) {
     if (type1 == HIGH) {
         return compare_cards(hand1[0], hand2[0]);
     } else if (type1 == PAIR || type1 == TRIPS) {
-        if (hand1[0].rank != hand2[0].rank)
+
+        if (hand1[0].rank != hand2[0].rank) {
             return compare_ranks(hand1[0].rank, hand2[0].rank);
-        // Compare highest suit in the group
+        }
+
+        // compare highest suit in the group
         return compare_suits(get_max_suit(hand1, size), get_max_suit(hand2, size));
     } else if (type1 == STRASSE) {
         Card highest1 = get_highest_card(hand1, size);
