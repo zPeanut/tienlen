@@ -18,10 +18,12 @@
 #include "utils/cards.h"
 
 int client_sockets[NUM_PLAYERS];
+int exempt_players[NUM_PLAYERS];
 int running = 1;
 int server_fd;
 int waiting_player_count = 0;
 int player_at_turn = 0;
+int round_has_played = 0;
 
 STAILQ_HEAD(stailq_head, message_entry) message_queue;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -169,8 +171,10 @@ void* io_thread(void* arg) {
                     }
 
                     printf("Sent to %s: DEAL:%s\n", players[i], deal_msg);
-                    send_message(client_sockets[i], "DEAL", deal_msg);
+                    if (i != 0) send_message(client_sockets[i], "DEAL", deal_msg);
                 }
+                send_message(client_sockets[0], "DEAL", "3,12");
+
                 printf("Game started with all players.\n");
                 printf("Cards dealt.\n");
                 has_dealt = 1;
@@ -283,7 +287,7 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
 
     if (count_players == 1) {
         winner_index = next_player;
-        *player_turn = next_player; // winmner becomes next player for next round
+        *player_turn = next_player; // winner becomes next player for next round
     } else {
         *player_turn = next_player;
     }
@@ -302,7 +306,7 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
             }
         }
 
-        // reset passes on round win
+        // reset passes on hand win
         for (int i = 0; i < max_players; i++) {
             if (passed_players[i] == 1) {
                 passed_players[i] = 0;
@@ -324,6 +328,8 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
 int main() {
     int max_players;
     max_players = get_max_players();
+
+    memset(exempt_players, 0, sizeof(exempt_players));
 
     for (int i = 0; i < max_players; i++) {
         client_sockets[i] = -1;
@@ -401,19 +407,23 @@ int main() {
                 if (colon) {
                     player_at_turn = atoi(colon + 1);
 
-                    passed_players[player_at_turn] = 1;
+                    if (!round_has_played) {
+                        send_message(client_sockets[player_at_turn], "ERROR", "Cannot pass first. Play a valid hand!");
+                    } else {
 
-                    for (int i = 0; i < max_players; i++) {
-                        if (client_sockets[i] != -1 && i != player_at_turn) {
-                            char msg[10] = { 0 };
-                            snprintf(msg, sizeof(msg), "%i", player_at_turn);
-                            printf("Sent to %s: PASS:%s\n", players[i], msg);
-                            send_message(client_sockets[i], "PASS", msg);
+                        passed_players[player_at_turn] = 1;
+
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] != -1 && i != player_at_turn) {
+                                char msg[10] = {0};
+                                snprintf(msg, sizeof(msg), "%i", player_at_turn);
+                                printf("Sent to %s: PASS:%s\n", players[i], msg);
+                                send_message(client_sockets[i], "PASS", msg);
+                            }
                         }
+
+                        get_next_player(max_players, passed_players, &player_at_turn, players);
                     }
-
-                    get_next_player(max_players, passed_players, &player_at_turn, players);
-
                 }
             }
 
@@ -422,11 +432,18 @@ int main() {
                 if (colon) {
                     int player_who_won = atoi(colon + 1);
 
+                    exempt_players[player_who_won] = 1;
                     passed_players[player_who_won] = 2;
 
                     for (int i = 0; i < max_players; i++) {
+                        if (passed_players[i] != 2) {
+                            passed_players[i] = 0;
+                        }
+                    }
+
+                    for (int i = 0; i < max_players; i++) {
                         if (client_sockets[i] != -1) {
-                            char msg[2] = { 0 };
+                            char msg[2] = {0};
                             snprintf(msg, sizeof(msg), "%i", player_who_won);
 
                             if (strstr(entry->message.buffer, "INSTANT_WIN")) {
@@ -440,51 +457,108 @@ int main() {
                         }
                     }
 
-                    // Deal new cards for the next round
-                    pthread_mutex_lock(&player_lock); // Ensure thread-safe access
-
-                    Deck *deck = malloc(sizeof(*deck));
-                    init_deck(deck);
-                    shuffle_deck(deck);
-                    int deck_index = 0;
+                    int active_count = 0;
+                    int last_player = -1;
 
                     for (int i = 0; i < max_players; i++) {
-                        if (client_sockets[i] == -1) continue;
-
-                        char deal_msg[256] = { 0 };
-                        for (int j = 0; j < HAND_SIZE; j++) {
-                            hands[i][j] = deck->cards[deck_index++];
-
-                            char card_str[10];
-                            int suit = hands[i][j].suit;
-                            int rank = hands[i][j].rank;
-                            snprintf(card_str, sizeof(card_str), "%d,%d%c", suit, rank, (j < HAND_SIZE - 1 ? ';' : '\0'));
-                            strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
-                        }
-                        send_message(client_sockets[i], "DEAL", deal_msg);
-                    }
-                    free(deck);
-
-                    // Reset passed players and set next turn
-                    memset(passed_players, 0, sizeof(passed_players));
-                    player_at_turn = player_who_won; // winner starts the new round TODO: let the loser start next round
-
-                    // Notify all clients of the new turn
-                    char turn_msg[2];
-                    snprintf(turn_msg, sizeof(turn_msg), "%i", player_at_turn);
-                    for (int i = 0; i < max_players; i++) {
-                        if (client_sockets[i] != -1) {
-                            send_message(client_sockets[i], "TURN", turn_msg);
+                        if (client_sockets[i] != -1 && !exempt_players[i]) {
+                            active_count++;
+                            last_player = i;
                         }
                     }
 
-                    pthread_mutex_unlock(&player_lock);
+                    if (active_count == 1) {
+                        // last player is loser
+
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] != -1) {
+                                char msg[20];
+                                snprintf(msg, sizeof(msg), "%d", last_player);
+                                send_message(client_sockets[i], "LOSER", msg);
+                            }
+                        }
+
+                        memset(exempt_players, 0, sizeof(exempt_players));
+
+                        // deal new cards for the next round
+                        pthread_mutex_lock(&player_lock);
+
+                        Deck *deck = malloc(sizeof(*deck));
+                        init_deck(deck);
+                        shuffle_deck(deck);
+                        int deck_index = 0;
+
+
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] == -1) continue;
+
+                            char deal_msg[256] = {0};
+                            for (int j = 0; j < HAND_SIZE; j++) {
+                                hands[i][j] = deck->cards[deck_index++];
+
+                                char card_str[10];
+                                int suit = hands[i][j].suit;
+                                int rank = hands[i][j].rank;
+                                snprintf(card_str, sizeof(card_str), "%d,%d%c", suit, rank, (j < HAND_SIZE - 1 ? ';' : '\0'));
+                                strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
+                            }
+                            send_message(client_sockets[i], "DEAL", deal_msg);
+                        }
+
+                        round_has_played = 0;
+                        free(deck);
+
+                        // set loser to start next round
+                        player_at_turn = last_player;
+                        char msg_turn[10];
+                        snprintf(msg_turn, sizeof(msg_turn), "%d", player_at_turn);
+
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] != -1) {
+                                send_message(client_sockets[i], "TURN", msg_turn);
+                            }
+                        }
+
+                        // reset passed players and set next turn
+                        memset(passed_players, 0, sizeof(passed_players));
+                        pthread_mutex_unlock(&player_lock);
+                    } else {
+                        // continue with remaining players
+                        int next_turn = -1;
+                        for (int i = 1; i <= max_players; i++) {
+                            int j = (player_who_won + i) % max_players;
+                            if (client_sockets[j] != -1 && !exempt_players[j]) {
+                                next_turn = j;
+                                break;
+                            }
+                        }
+
+                        if (next_turn != -1) {
+                            player_at_turn = next_turn;
+                            char turn_msg[10];
+                            snprintf(turn_msg, sizeof(turn_msg), "%d", player_at_turn);
+                            for (int i = 0; i < max_players; i++) {
+                                if (client_sockets[i] != -1) {
+                                    send_message(client_sockets[i], "TURN", turn_msg);
+                                }
+                            }
+                        }
+
+                        // Reset passes for non-exempt players
+                        for (int i = 0; i < max_players; i++) {
+                            if (client_sockets[i] != -1 && !exempt_players[i]) {
+                                passed_players[i] = 0;
+                            }
+                        }
+                    }
                 }
+
             }
 
             else if(strstr(entry->message.buffer, "PLAYED")) {
                 char* colon = strchr(entry->message.buffer, ':');
                 int player_who_played = 0;
+                round_has_played = 1;
                 if (colon) {
                     player_who_played = atoi(colon + 1);
                 }

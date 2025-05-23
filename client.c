@@ -156,6 +156,21 @@ int main() {
                 }
             }
 
+            else if (strstr(recv_buffer, "ERROR")) {
+                char* error_msg = "Cannot pass first. Play a valid hand!";
+                line_count--;
+                add_message(display, error_msg, &line_count);
+                memset(selected_cards, 0, sizeof(selected_cards));
+                highlight = 0;
+            }
+
+            else if (strstr(recv_buffer, "AMOUNT")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    player_count = atoi(colon + 1);
+                }
+            }
+
             else if (strstr(recv_buffer, "DEAL")) {
                 memset(selected_cards, 0, sizeof(selected_cards)); // reset
                 memset(player_deck, 0, sizeof(player_deck)); // reset
@@ -174,6 +189,11 @@ int main() {
 
                     token = strtok(NULL, ";");
                 }
+
+                if (client_position == 0) {
+                    hand_size = 1;
+                }
+
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
 
                 int count = 0;
@@ -192,6 +212,20 @@ int main() {
                 has_won_hand = 0;
                 animation_flag = 0; // enable animation
                 flushinp();
+            }
+
+            else if (strstr(recv_buffer, "LOSER")) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon) {
+                    int player_who_lost = atoi(colon + 1);
+                    char msg[90];
+                    if (client_position == player_who_lost) {
+                        snprintf(msg, sizeof(msg), "You lost!");
+                    } else {
+                        snprintf(msg, sizeof(msg), "%s lost and starts the next round.", players[player_who_lost]);
+                    }
+                    add_message(display, msg, &line_count);
+                }
             }
 
             else if (strstr(recv_buffer, "INSTANT_WIN")) {
@@ -257,8 +291,6 @@ int main() {
 
                 }
             }
-
-
 
             else if (strstr(recv_buffer, "PLAYED")) {
                 received_hand_size = 0;
@@ -534,38 +566,6 @@ int main() {
 
 
         // --- BEGIN GAME LOGIC ---
-
-        if (turn) {
-            if (has_played) {
-                char display_msg[90] = { 0 };
-
-                if (any_selected) {
-                    mvwhline(win_server, 4, 2, ' ', line_x - 2);
-                    char* display_msg_1 = "You played: ";
-                    strncat(display_msg, display_msg_1, strlen(display_msg_1));
-
-                    for (int i = 0; i < played_hand_size; i++) {
-                        char *msg = return_card(played_hand[i]);
-
-                        strncat(display_msg, msg, strlen(msg));
-                        strncat(display_msg, " ", strlen(" ") + 1);
-
-                        free(msg);
-                    }
-                    display_msg[strlen(display_msg)] = '\0';
-                    line_count--; // replace "your turn." message
-                    add_message(display, display_msg, &line_count);
-                } else {
-                    line_count--;
-                    add_message(display, "You passed.", &line_count);
-                }
-
-                memset(played_hand, 0, hand_size * sizeof(int));
-                has_played = 0;
-                any_selected = 0;
-                turn = 0;
-            }
-        }
         wrefresh(win_user);
         wrefresh(win_server);
         // --- END GAME LOGIC ---
@@ -646,22 +646,41 @@ int main() {
                                 }
                                 send_message(sock, "PLAYED", played_msg);
 
+                                char display_msg[90] = { 0 };
+                                mvwhline(win_server, 4, 2, ' ', line_x - 2);
+                                char* display_msg_1 = "You played: ";
+                                strncat(display_msg, display_msg_1, strlen(display_msg_1));
+
+                                for (int i = 0; i < played_hand_size; i++) {
+                                    char *msg = return_card(played_hand[i]);
+
+                                    strncat(display_msg, msg, strlen(msg));
+                                    strncat(display_msg, " ", strlen(" ") + 1);
+
+                                    free(msg);
+                                }
+                                display_msg[strlen(display_msg)] = '\0';
+                                line_count--; // replace "your turn." message
+                                add_message(display, display_msg, &line_count);
+
                                 hand_type = current_hand_type;
                                 memset(selected_cards, 0, hand_size * sizeof(int));
 
                                 if (hand_size > 0) {
                                     if (highlight > hand_size - 1) highlight = 0;
-                                    has_played = 1;
                                 } else if (hand_size == 0) {
                                     char msg[2] = { 0 };
                                     snprintf(msg, sizeof(msg), "%i", client_position);
                                     send_message(sock, "WIN_ROUND", msg);
                                     has_won_round = 1;
-                                    has_played = 1;
                                 }
 
-                            } else if (!is_valid_hand(played_hand, received_hand, played_hand_size, received_hand_size)) {
-                                // INVALID HAND
+                                memset(played_hand, 0, hand_size * sizeof(int));
+                                any_selected = 0;
+                                turn = 0;
+
+                            } else if (!is_valid_hand(played_hand, received_hand, played_hand_size, received_hand_size) || received_hand[0].suit == -1) {
+                                // INVALID HAND or LAID NOTHING
                                 line_count--;
                                 add_message(display, "Invalid hand!", &line_count);
                                 memset(selected_cards, 0, hand_size * sizeof(int));
@@ -677,8 +696,13 @@ int main() {
                             snprintf(buf, sizeof(buf), "%i", client_position);
                             send_message(sock, "PASS", buf);
                             has_played = 1;
+
+                            line_count--;
+                            add_message(display, "You passed.", &line_count);
                         }
                     }
+                    wrefresh(win_user);
+                    wrefresh(win_server);
                 }
                     break;
                 default:
@@ -693,6 +717,4 @@ int main() {
     endwin();
     close(sock);
     free(name);
-    printf("Server closed!\n");
-    return 0;
-}
+    printf("Server closed!\n");return 0; }
