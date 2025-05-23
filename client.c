@@ -83,8 +83,6 @@ int main() {
         }
     }
 
-    // TODO: not resetting round after win, losing player needs turn first
-
     // initial rendering of userlist
 
     draw_user_list(width, height, line_x, player_count, score, name, players, win_user);

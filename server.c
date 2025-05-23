@@ -24,6 +24,7 @@ int server_fd;
 int waiting_player_count = 0;
 int player_at_turn = 0;
 int round_has_played = 0;
+int last_played_player = -1;
 
 STAILQ_HEAD(stailq_head, message_entry) message_queue;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -277,19 +278,34 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
     int current_player = *player_turn;
     int next_player = -1;
 
+    // Handle case where all active players have passed
+    if (count_players == 0 && last_played_player != -1) {
+        winner_index = last_played_player;
+        // Send WIN_HAND to all clients
+        for (int i = 0; i < max_players; i++) {
+            if (client_sockets[i] != -1) {
+                char msg[10];
+                snprintf(msg, sizeof(msg), "%i", winner_index);
+                send_message(client_sockets[i], "WIN_HAND", msg);
+                send_message(client_sockets[i], "TURN", msg); // Set winner's turn for next round
+            }
+        }
+        // Reset passes for the next hand
+        memset(passed_players, 0, sizeof(int) * max_players);
+        *player_turn = winner_index;
+        last_played_player = -1; // Reset tracker
+        return;
+    }
+
+    // TODO: fix this logic
+
+
     for (int i = 1; i <= max_players; i++) {
         int j = (current_player + i) % max_players;
         if (passed_players[j] == 0) { // if player found who hasnt passed, if hes the only one, win round, if not, his turn
             next_player = j;
             break;
         }
-    }
-
-    if (count_players == 1) {
-        winner_index = next_player;
-        *player_turn = next_player; // winner becomes next player for next round
-    } else {
-        *player_turn = next_player;
     }
 
     if (winner_index != -1) {
@@ -411,7 +427,9 @@ int main() {
                         send_message(client_sockets[player_at_turn], "ERROR", "Cannot pass first. Play a valid hand!");
                     } else {
 
-                        passed_players[player_at_turn] = 1;
+                        if (!exempt_players[player_at_turn]) {
+                            passed_players[player_at_turn] = 1;
+                        }
 
                         for (int i = 0; i < max_players; i++) {
                             if (client_sockets[i] != -1 && i != player_at_turn) {
@@ -583,6 +601,7 @@ int main() {
                     token = strtok(NULL, ";");
                 }
 
+                last_played_player = player_who_played;
                 get_next_player(max_players, passed_players, &player_at_turn, players);
             }
 
