@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 #include "cards.h"
 
@@ -40,9 +41,14 @@ int compare_by_rank(const void *a, const void *b) {
 }
 
 char* return_card(Card card) {
+
+    if (card.suit < PIK || card.suit > HERZ || card.rank < DREI || card.rank > ZWEI) {
+        return strdup("??");
+    }
+
     char* s = malloc(6);
     const char* suit_names[] = {"♠", "♣", "♦", "♥"};
     const char* rank_names[] = {"3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2"};
-    sprintf(s, "%s%s", rank_names[card.rank], suit_names[card.suit]);
+    snprintf(s, 6, "%s%s", rank_names[card.rank], suit_names[card.suit]);
     return s;
 }
