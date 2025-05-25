@@ -28,12 +28,14 @@ int main() {
     int game_start_flag = 1;
     int hand_size = HAND_SIZE;              // max win_hand size (always 13, even if fewer than 4 players are connected)
     int hand_type = 0;
+    int hand_dirty = 1;
     int has_played = 0;                     // keep track if it's your turn or not
     int has_cleared = 0;                    // check if server window has been cleared
     int has_won_hand = 0;
     int has_won_round = 0;
     int highlight = 0;                      // highlight animation_flag for selected card
     int line_count = 0;                     // line count for window
+    int message_dirty = 1;
     char* name;
     int played_hand_size = 0;
     int player_count;
@@ -45,6 +47,7 @@ int main() {
     int selected_cards[hand_size];          // array of flags - checks if card at index is highlighted to be has_played
     int sock = setup_connection(8, players, &player_count, &name);  // setup client connection to server
     int straight_length = 0;
+    int user_list_dirty = 1;
     int total_len;                          // total length of win_hand (used for centering)
     int turn = 0;                           // turn check animation_flag
     int waiting_dots_index = 0;
@@ -125,6 +128,10 @@ int main() {
             if (strstr(recv_buffer, "PLAYERS")) {
                 if (parse_names(recv_buffer, players)) { // only update if players changed
 
+                    // redraw ONLY the user list window
+                    werase(win_user);
+                    box(win_user, 0, 0);
+
                     waiting_player_count = 0;
                     for (int i = 0; i < player_count; i++) {
                         if (strlen(players[i]) > 0) waiting_player_count++; // calculate new player count
@@ -140,11 +147,7 @@ int main() {
                 all_players_connected = (waiting_player_count == player_count);
                 if (!all_players_connected) has_cleared = 0;
 
-                // redraw ONLY the user list window
-                werase(win_user);
-                box(win_user, 0, 0);
-                draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
-                wrefresh(win_user);
+                user_list_dirty = 1;
             }
 
             else if (strstr(recv_buffer, "AMOUNT")) {
@@ -157,16 +160,9 @@ int main() {
             else if (strstr(recv_buffer, "ERROR")) {
                 char* error_msg = "Cannot pass first. Play a valid hand!";
                 line_count--;
-                add_message(display, error_msg, &line_count);
+                add_message(display, error_msg, &line_count, &message_dirty);
                 memset(selected_cards, 0, sizeof(selected_cards));
                 highlight = 0;
-            }
-
-            else if (strstr(recv_buffer, "AMOUNT")) {
-                char* colon = strchr(recv_buffer, ':');
-                if (colon) {
-                    player_count = atoi(colon + 1);
-                }
             }
 
             else if (strstr(recv_buffer, "DEAL")) {
@@ -218,7 +214,7 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s lost and starts the next round.", players[player_who_lost]);
                     }
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
 
@@ -239,7 +235,7 @@ int main() {
                         has_won_round = 0;
                         score[player_who_won]++;
                     }
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
 
@@ -260,7 +256,7 @@ int main() {
                         has_won_round = 0;
                         score[player_who_won]++;
                     }
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
 
@@ -275,12 +271,12 @@ int main() {
                         snprintf(msg, sizeof(msg), "You won this hand!");
                         has_won_hand = 1;
 
-                        add_message(display, msg, &line_count);
+                        add_message(display, msg, &line_count, &message_dirty);
                     } else {
                         snprintf(msg, sizeof(msg), "%s has won this hand.", players[player_who_won]);
                         has_won_hand = 0;
 
-                        add_message(display, msg, &line_count);
+                        add_message(display, msg, &line_count, &message_dirty);
                     }
 
                 }
@@ -321,7 +317,7 @@ int main() {
                     }
 
                     line_count--;
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
 
@@ -337,7 +333,7 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
                     }
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
 
@@ -348,7 +344,7 @@ int main() {
                     char msg[60];
                     snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
                     line_count--;
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
 
@@ -359,11 +355,9 @@ int main() {
                     char msg[60];
                     snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
                     line_count--;
-                    add_message(display, msg, &line_count);
+                    add_message(display, msg, &line_count, &message_dirty);
                 }
             }
-
-
 
             // remove parsed message from buffer
             size_t remaining = recv_buffer_len - (parsed_message_end - recv_buffer + 1);
@@ -379,8 +373,10 @@ int main() {
         int y = win_height / 2;
 
         // win_user loop
-        draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
-
+        if (!user_list_dirty) {
+            draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
+            user_list_dirty = 0;
+        }
 
         // waiting room
         if (!all_players_connected) {
@@ -434,6 +430,9 @@ int main() {
 
         // -- animation begin --
         if (!animation_flag) {
+
+            int animation_delay = 75 * 1000; // 150ms
+
             werase(win_hand);
             box(win_hand, 0, 0);
 
@@ -452,11 +451,9 @@ int main() {
 
                 mvwhline(win_hand, y, 2, ' ', win_width - 10);
                 draw_hand(win_hand, y, x, i + 1, player_deck, highlight, selected_cards);
-
                 wrefresh(win_hand);
-                wrefresh(win_server);
-                wrefresh(win_user);
-                usleep(100 * 1000);
+
+                usleep(animation_delay);
             }
             animation_flag = 1;
         }
@@ -477,91 +474,99 @@ int main() {
         draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
 
 
-        // draw messages
-        werase(win_server);  // Clear entire window
-        box(win_server, 0, 0);  // Redraw border
+        if (message_dirty) {
+            // draw messages
+            werase(win_server);  // Clear entire window
+            box(win_server, 0, 0);  // Redraw border
 
-        char hand_type_str[50] = {0};
-        char str[3];
+            char hand_type_str[50] = {0};
+            char str[3];
 
-        snprintf(str, sizeof(str), "%i", straight_length);
-        snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ", (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str : ""), (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? "er " : ""), return_hand_type(hand_type));
+            snprintf(str, sizeof(str), "%i", straight_length);
+            snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ",
+                     (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str : ""),
+                     (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? "er " : ""),
+                     return_hand_type(hand_type));
 
-        if (strstr(hand_type_str, "Unbekannt") != NULL) wattron(win_server, COLOR_PAIR(WHITE));
-        if (strstr(hand_type_str, "High Card") != NULL) wattron(win_server, COLOR_PAIR(RED));
-        if (strstr(hand_type_str, "Paar") != NULL) wattron(win_server, COLOR_PAIR(ORANGE));
-        if (strstr(hand_type_str, "Trips") != NULL) wattron(win_server, COLOR_PAIR(YELLOW));
-        if (strstr(hand_type_str, "Quads") != NULL) wattron(win_server, COLOR_PAIR(GREEN));
-        if (strstr(hand_type_str, "Straße") != NULL) wattron(win_server, COLOR_PAIR(BLUE));
-        if (strstr(hand_type_str, "Zwei-Paar Straße") != NULL) wattron(win_server, COLOR_PAIR(PURPLE));
+            if (strstr(hand_type_str, "Unbekannt") != NULL) wattron(win_server, COLOR_PAIR(WHITE));
+            if (strstr(hand_type_str, "High Card") != NULL) wattron(win_server, COLOR_PAIR(RED));
+            if (strstr(hand_type_str, "Paar") != NULL) wattron(win_server, COLOR_PAIR(ORANGE));
+            if (strstr(hand_type_str, "Trips") != NULL) wattron(win_server, COLOR_PAIR(YELLOW));
+            if (strstr(hand_type_str, "Quads") != NULL) wattron(win_server, COLOR_PAIR(GREEN));
+            if (strstr(hand_type_str, "Straße") != NULL) wattron(win_server, COLOR_PAIR(BLUE));
+            if (strstr(hand_type_str, "Zwei-Paar Straße") != NULL) wattron(win_server, COLOR_PAIR(PURPLE));
 
-        mvwprintw(win_server, 0, 2, "%s", hand_type_str);
+            mvwprintw(win_server, 0, 2, "%s", hand_type_str);
 
-        wattroff(win_server, COLOR_PAIR(WHITE));
-        wattroff(win_server, COLOR_PAIR(RED));
-        wattroff(win_server, COLOR_PAIR(ORANGE));
-        wattroff(win_server, COLOR_PAIR(YELLOW));
-        wattroff(win_server, COLOR_PAIR(GREEN));
-        wattroff(win_server, COLOR_PAIR(BLUE));
-        wattroff(win_server, COLOR_PAIR(PURPLE));
+            wattroff(win_server, COLOR_PAIR(WHITE));
+            wattroff(win_server, COLOR_PAIR(RED));
+            wattroff(win_server, COLOR_PAIR(ORANGE));
+            wattroff(win_server, COLOR_PAIR(YELLOW));
+            wattroff(win_server, COLOR_PAIR(GREEN));
+            wattroff(win_server, COLOR_PAIR(BLUE));
+            wattroff(win_server, COLOR_PAIR(PURPLE));
 
-        for (int i = 0; i < line_count; ++i) {
-            int y1 = i * 2 + 2; // +1 offset if box border exists
+            for (int i = 0; i < line_count; ++i) {
+                int y1 = i * 2 + 2; // +1 offset if box border exists
 
-            char line_buffer[256];
-            strncpy(line_buffer, display[i], sizeof(line_buffer) - 1);
-            line_buffer[sizeof(line_buffer) - 1] = '\0';
+                char line_buffer[256];
+                strncpy(line_buffer, display[i], sizeof(line_buffer) - 1);
+                line_buffer[sizeof(line_buffer) - 1] = '\0';
 
-            int current_x = 2;
+                int current_x = 2;
 
-            char* token = strtok(line_buffer, " ");
-            while (token != NULL) {
-                int is_card = 0;
-                int color_pair = 0;
-                size_t token_len = strlen(token);
-                size_t suit_len = strlen(S_PIK);
+                char *token = strtok(line_buffer, " ");
+                while (token != NULL) {
+                    int is_card = 0;
+                    int color_pair = 0;
+                    size_t token_len = strlen(token);
+                    size_t suit_len = strlen(S_PIK);
 
-                // does token end with suit symbol
-                if (token_len >= suit_len) {
-                    char *suit_pos = token + token_len - suit_len; // point to the last 3 bytes
+                    // does token end with suit symbol
+                    if (token_len >= suit_len) {
+                        char *suit_pos = token + token_len - suit_len; // point to the last 3 bytes
 
-                    if (memcmp(suit_pos, S_PIK, suit_len) == 0) {
-                        color_pair = COLOR_PAIR(WHITE);
-                        is_card = 1;
-                    } else if (memcmp(suit_pos, S_KREUZ, suit_len) == 0) {
-                        color_pair = COLOR_PAIR(BLUE);
-                        is_card = 1;
-                    } else if (memcmp(suit_pos, S_KARO, suit_len) == 0) {
-                        color_pair = COLOR_PAIR(YELLOW);
-                        is_card = 1;
-                    } else if (memcmp(suit_pos, S_HERZ, suit_len) == 0) {
-                        color_pair = COLOR_PAIR(RED);
-                        is_card = 1;
+                        if (memcmp(suit_pos, S_PIK, suit_len) == 0) {
+                            color_pair = COLOR_PAIR(WHITE);
+                            is_card = 1;
+                        } else if (memcmp(suit_pos, S_KREUZ, suit_len) == 0) {
+                            color_pair = COLOR_PAIR(BLUE);
+                            is_card = 1;
+                        } else if (memcmp(suit_pos, S_KARO, suit_len) == 0) {
+                            color_pair = COLOR_PAIR(YELLOW);
+                            is_card = 1;
+                        } else if (memcmp(suit_pos, S_HERZ, suit_len) == 0) {
+                            color_pair = COLOR_PAIR(RED);
+                            is_card = 1;
+                        }
                     }
+
+
+                    if (is_card) wattron(win_server, color_pair);
+                    mvwprintw(win_server, y1, current_x, "%s", token);
+                    wattroff(win_server, color_pair);
+
+                    current_x += strlen(token);
+
+                    char *next_token = strtok(NULL, " ");
+                    if (next_token != NULL) {
+                        mvwprintw(win_server, y1, current_x, " ");
+                        current_x++;
+                    }
+
+                    token = next_token;
                 }
-
-
-                if (is_card) wattron(win_server, color_pair);
-                mvwprintw(win_server, y1, current_x, "%s", token);
-                wattroff(win_server, color_pair);
-
-                current_x += strlen(token);
-
-                char *next_token = strtok(NULL, " ");
-                if (next_token != NULL) {
-                    mvwprintw(win_server, y1, current_x, " ");
-                    current_x++;
-                }
-
-                token = next_token;
             }
+
+            wrefresh(win_server);
+
+            message_dirty = 0;
         }
         // --- END UI SECTION ---
 
 
         // --- BEGIN GAME LOGIC ---
-        wrefresh(win_user);
-        wrefresh(win_server);
+
         // --- END GAME LOGIC ---
 
 
@@ -655,7 +660,7 @@ int main() {
                                 }
                                 display_msg[strlen(display_msg)] = '\0';
                                 line_count--; // replace "your turn." message
-                                add_message(display, display_msg, &line_count);
+                                add_message(display, display_msg, &line_count, &message_dirty);
 
                                 hand_type = current_hand_type;
                                 memset(selected_cards, 0, hand_size * sizeof(int));
@@ -676,12 +681,12 @@ int main() {
                             } else if (!is_valid_hand(played_hand, received_hand, played_hand_size, received_hand_size) || received_hand[0].suit == -1) {
                                 // INVALID HAND or LAID NOTHING
                                 line_count--;
-                                add_message(display, "Invalid hand!", &line_count);
+                                add_message(display, "Invalid hand!", &line_count, &message_dirty);
                                 memset(selected_cards, 0, hand_size * sizeof(int));
                             } else {
                                 // NOT HIGH ENOUGH HAND
                                 line_count--;
-                                add_message(display, "Hand is not higher than previous hand!", &line_count);
+                                add_message(display, "Hand is not higher than previous hand!", &line_count, &message_dirty);
                                 memset(selected_cards, 0, hand_size * sizeof(int));
                             }
                         } else {
@@ -692,7 +697,7 @@ int main() {
                             has_played = 1;
 
                             line_count--;
-                            add_message(display, "You passed.", &line_count);
+                            add_message(display, "You passed.", &line_count, &message_dirty);
                         }
                     }
                     wrefresh(win_user);

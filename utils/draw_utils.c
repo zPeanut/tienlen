@@ -58,7 +58,7 @@ void draw_user_list(int width, int height, int line_x, int player_count, int* sc
     }
 }
 
-void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count) {
+void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count, int *dirty_flag) {
 
     if (*line_count < 10) {
         strncpy(messages[*line_count], buf, MAX_MESSAGE_LENGTH - 1);
@@ -72,6 +72,8 @@ void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_coun
         strncpy(messages[9], buf, MAX_MESSAGE_LENGTH - 1);
         messages[9][MAX_MESSAGE_LENGTH] = '\0';
     }
+
+    *dirty_flag = 1;
 }
 
 int setup_ncurses_ui() {
