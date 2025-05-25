@@ -157,9 +157,12 @@ void* io_thread(void* arg) {
 
                 int deck_index = 0;
                 for (int i = 0; i < player_count; i++) {
+                    if (client_sockets[i] == -1) continue;
+
                     char deal_msg[256] = { 0 };
                     for (int j = 0; j < HAND_SIZE; j++) {
                         hands[i][j] = deck->cards[deck_index++];
+
                         int suit = hands[i][j].suit;
                         int rank = hands[i][j].rank;
                         char card_str[10];
@@ -211,7 +214,10 @@ void* io_thread(void* arg) {
                     client_sockets[i] = -1;
 
                     memset(players[i], 0, MAX_NAME_LENGTH);       // reset name
-                    memset(hands[i], 0, sizeof(Card) * HAND_SIZE); // reset hand
+                    for (int j = 0; j < HAND_SIZE; j++) {
+                        hands[i][j].suit = -1;  // mark as invalid
+                        hands[i][j].rank = -1;
+                    }
 
                     // make updated player lists (after disconnects)
                     char player_list_dc[256] = { 0 };
@@ -406,7 +412,7 @@ int main() {
             // GAME LOGIC HERE
             if (strstr(entry->message.buffer, "PASS")) {
                 char* colon = strchr(entry->message.buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     player_at_turn = atoi(colon + 1);
 
                     if (!round_has_played) {
@@ -433,7 +439,7 @@ int main() {
 
             if (strstr(entry->message.buffer, "WIN_ROUND") || strstr(entry->message.buffer, "INSTANT_WIN")) {
                 char* colon = strchr(entry->message.buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_won = atoi(colon + 1);
 
                     exempt_players[player_who_won] = 1;
@@ -498,6 +504,10 @@ int main() {
 
                             char deal_msg[256] = {0};
                             for (int j = 0; j < HAND_SIZE; j++) {
+                                if (deck->cards[deck_index].suit < PIK || deck->cards[deck_index].suit > HERZ) {
+                                    printf("Error dealing cards.\n");
+                                    exit(1);
+                                }
                                 hands[i][j] = deck->cards[deck_index++];
 
                                 char card_str[10];
@@ -563,7 +573,7 @@ int main() {
                 char* colon = strchr(entry->message.buffer, ':');
                 int player_who_played = 0;
                 round_has_played = 1;
-                if (colon) {
+                if (colon != NULL) {
                     player_who_played = atoi(colon + 1);
                 }
 
