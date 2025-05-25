@@ -142,8 +142,8 @@ void* io_thread(void* arg) {
 
             for (int i = 0; i < waiting_player_count; i++) {
                 if (client_sockets[i] != -1) {
-                    char buffer[4];
-                    snprintf(buffer, 4, "%i", player_count);
+                    char buffer[12];
+                    snprintf(buffer, sizeof(buffer), "%i", player_count);
 
                     printf("Sent to %s: AMOUNT:%s\n", players[i], buffer);
                     send_message(client_sockets[i], "AMOUNT", buffer);
@@ -295,7 +295,7 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
     if (winner_index != -1) {
         for (int i = 0; i < max_players; i++) {
             if (client_sockets[i] != -1) {
-                char msg[10] = { 0 };
+                char msg[12] = { 0 };
                 snprintf(msg, sizeof(msg), "%i", winner_index);
 
                 printf("Sent to %s: WIN_HAND:%s\n", players[i], msg);
