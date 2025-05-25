@@ -172,9 +172,8 @@ void* io_thread(void* arg) {
                     }
 
                     printf("Sent to %s: DEAL:%s\n", players[i], deal_msg);
-                    if (i != 0) send_message(client_sockets[i], "DEAL", deal_msg);
+                    send_message(client_sockets[i], "DEAL", deal_msg);
                 }
-                send_message(client_sockets[0], "DEAL", "3,12");
 
                 printf("Game started with all players.\n");
                 printf("Cards dealt.\n");

@@ -188,10 +188,6 @@ int main() {
                     token = strtok(NULL, ";");
                 }
 
-                if (client_position == 0) {
-                    hand_size = 1;
-                }
-
                 qsort(player_deck, hand_size, sizeof(Card), compare_by_rank); // sort win_server by rank
 
                 int count = 0;
