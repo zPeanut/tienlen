@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <locale.h>
 #include <ncurses.h>
+#include <signal.h>
 
 #include "utils/conn_utils.h"
 #include "utils/draw_utils.h"
@@ -15,7 +16,14 @@
 
 int waiting_player_count = 0;
 
+static volatile int running = 1;
+
+void handle_ctrlc(int signal) {
+    running = 0;
+}
+
 int main() {
+    signal(SIGINT, handle_ctrlc);
     setlocale(LC_ALL, "");
 
     // ---- BEGIN VARIABLE DECLARATION ----
@@ -53,10 +61,13 @@ int main() {
     int waiting_dots_index = 0;
 
     Card player_deck[hand_size]; // current hand
-    player_deck[0].suit = -1;
     Card played_hand[hand_size]; // hand played on turn
     Card received_hand[HAND_SIZE] = { -1 }; // hand played by others
-    memset(played_hand, 0, hand_size * sizeof(int)); // need to init array to NULL to check if win_server are inside it
+    memset(played_hand, 0, hand_size * sizeof(Card)); // need to init array to NULL to check if win_server are inside it
+
+    hand_size = HAND_SIZE;
+    memset(player_deck, 0, sizeof(player_deck));
+    memset(selected_cards, 0, sizeof(selected_cards));
     // ---- END VARIABLE DECLARATION ----
 
 
@@ -100,7 +111,7 @@ int main() {
 
 
     // game loop
-    while (1) {
+    while (running) {
 
         fd_set readfds;
         FD_ZERO(&readfds);
@@ -126,6 +137,7 @@ int main() {
 
             // individual message parsing
             if (strstr(recv_buffer, "PLAYERS")) {
+                memset(players, 0, sizeof(players));
                 if (parse_names(recv_buffer, players)) { // only update if players changed
 
                     // redraw ONLY the user list window
@@ -152,7 +164,7 @@ int main() {
 
             else if (strstr(recv_buffer, "AMOUNT")) {
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     player_count = atoi(colon + 1);
                 }
             }
@@ -202,11 +214,13 @@ int main() {
                 has_won_hand = 0;
                 animation_flag = 0; // enable animation
                 flushinp();
+
+                send_message(sock, "Received", "Deal");
             }
 
             else if (strstr(recv_buffer, "LOSER")) {
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_lost = atoi(colon + 1);
                     char msg[90];
                     if (client_position == player_who_lost) {
@@ -222,7 +236,7 @@ int main() {
                 memset(received_hand, 0, sizeof(received_hand));
                 received_hand[0].suit = -1;
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_won = atoi(colon + 1);
 
                     char msg[90];
@@ -243,7 +257,7 @@ int main() {
                 memset(received_hand, 0, sizeof(received_hand));
                 received_hand[0].suit = -1;
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_won = atoi(colon + 1);
 
                     char msg[90];
@@ -262,7 +276,7 @@ int main() {
 
             else if (strstr(recv_buffer, "WIN_HAND")) {
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_won = atoi(colon + 1);
 
                     char msg[60];
@@ -285,8 +299,8 @@ int main() {
             else if (strstr(recv_buffer, "PLAYED")) {
                 received_hand_size = 0;
                 memset(received_hand, 0, sizeof(received_hand));
-                char *colon = strchr(recv_buffer, ':');
-                if (colon) {
+                char* colon = strchr(recv_buffer, ':');
+                if (colon != NULL) {
                     int player_who_played = atoi(colon + 1);
                     char *cards_start = strchr(colon + 1, ':') + 1;
 
@@ -323,7 +337,7 @@ int main() {
 
             else if (strstr(recv_buffer, "TURN")) {
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_at_turn = atoi(colon + 1);
 
                     char msg[40] = { 0 };
@@ -339,7 +353,7 @@ int main() {
 
             else if (strstr(recv_buffer, "PASS")) {
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_passed = atoi(colon + 1);
                     char msg[60];
                     snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
@@ -350,7 +364,7 @@ int main() {
 
             else if (strstr(recv_buffer, "PASS")) {
                 char* colon = strchr(recv_buffer, ':');
-                if (colon) {
+                if (colon != NULL) {
                     int player_who_passed = atoi(colon + 1);
                     char msg[60];
                     snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
@@ -373,7 +387,7 @@ int main() {
         int y = win_height / 2;
 
         // win_user loop
-        if (!user_list_dirty) {
+        if (user_list_dirty) {
             draw_user_list(width, height, line_x, player_count, score, name, players, win_user);
             user_list_dirty = 0;
         }
@@ -420,7 +434,7 @@ int main() {
             char* game_start_msg = "All players connected. Game start!";
             mvwprintw(win_hand, win_height / 2, (int) (win_width - strlen(game_start_msg)) / 2, "%s", game_start_msg);
             wrefresh(win_hand);
-            // usleep(2000 * 1000); TODO: add this back on prod
+            usleep(1000 * 1000);
 
             // enable input
             keypad(win_hand, true);
@@ -473,7 +487,6 @@ int main() {
         x = (win_width - total_len) / 2;
         draw_hand(win_hand, y, x, hand_size, player_deck, highlight, selected_cards);
 
-
         if (message_dirty) {
             // draw messages
             werase(win_server);  // Clear entire window
@@ -481,12 +494,13 @@ int main() {
 
             char hand_type_str[50] = {0};
             char str[3];
+            char* str_ret_hand_type = return_hand_type(hand_type);
 
             snprintf(str, sizeof(str), "%i", straight_length);
             snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ",
                      (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str : ""),
                      (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? "er " : ""),
-                     return_hand_type(hand_type));
+                     str_ret_hand_type);
 
             if (strstr(hand_type_str, "Unbekannt") != NULL) wattron(win_server, COLOR_PAIR(WHITE));
             if (strstr(hand_type_str, "High Card") != NULL) wattron(win_server, COLOR_PAIR(RED));
@@ -505,6 +519,8 @@ int main() {
             wattroff(win_server, COLOR_PAIR(GREEN));
             wattroff(win_server, COLOR_PAIR(BLUE));
             wattroff(win_server, COLOR_PAIR(PURPLE));
+
+            free(str_ret_hand_type);
 
             for (int i = 0; i < line_count; ++i) {
                 int y1 = i * 2 + 2; // +1 offset if box border exists
@@ -674,7 +690,7 @@ int main() {
                                     has_won_round = 1;
                                 }
 
-                                memset(played_hand, 0, hand_size * sizeof(int));
+                                memset(played_hand, 0, hand_size * sizeof(Card));
                                 any_selected = 0;
                                 turn = 0;
 
@@ -716,4 +732,6 @@ int main() {
     endwin();
     close(sock);
     free(name);
-    printf("Server closed!\n");return 0; }
+    printf("Server closed!\n");
+    return 0;
+}
