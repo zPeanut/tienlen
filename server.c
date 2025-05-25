@@ -328,6 +328,9 @@ int main() {
     int max_players;
     max_players = get_max_players();
 
+    int port;
+    port = get_client_port();
+
     memset(exempt_players, 0, sizeof(exempt_players));
 
     for (int i = 0; i < max_players; i++) {
@@ -344,8 +347,8 @@ int main() {
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(DEFAULT_PORT);
-    printf("Port: %d\n", DEFAULT_PORT);
+    address.sin_port = htons(port);
+    printf("Port: %d\n", port);
 
     int b = bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     if (b != 0) {
