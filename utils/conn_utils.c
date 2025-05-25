@@ -80,29 +80,57 @@ int setup_connection(int timeout, char (*players)[MAX_NAME_LENGTH], int *max_pla
 
     char* name = get_client_name();
     write(sock, name, strlen(name));
-    *get_name = name;
+    *get_name = strdup(name);
 
-    // build initial userlist from server
-    char recv_buffer[256] = { 0 };
-    ssize_t received = read(sock, recv_buffer, sizeof(recv_buffer) - 1);
-    recv_buffer[received] = '\0';
-    if (received > 0) {
-        // parse player names with comma
-        memset(players, 0, sizeof(*players));
-        parse_names(recv_buffer, players);
+    // parse players and amount messages
+    char recv_buffer[4096] = {0};
+    ssize_t total_received = 0;
+    char *players_msg = NULL;
+    char *amount_msg = NULL;
+    char *saveptr;
+
+    while (!players_msg || !amount_msg) {
+        ssize_t received = read(sock, recv_buffer + total_received, sizeof(recv_buffer) - total_received - 1);
+        if (received <= 0) {
+            close(sock);
+            exit(1);
+        }
+        total_received += received;
+        recv_buffer[total_received] = '\0';
+
+        // split buffer into lines
+        char *line = strtok_r(recv_buffer, "\n", &saveptr);
+        while (line) {
+            if (strstr(line, "PLAYERS:")) players_msg = strdup(line);
+            else if (strstr(line, "AMOUNT:")) amount_msg = strdup(line);
+            line = strtok_r(NULL, "\n", &saveptr);
+        }
+
+        // move remaining data to buffer start
+        if (saveptr) {
+            size_t remaining = strlen(saveptr);
+            memmove(recv_buffer, saveptr, remaining);
+            total_received = remaining;
+            recv_buffer[total_received] = '\0';
+        } else {
+            total_received = 0;
+        }
     }
 
-    char get_max_player_buf[20] = { 0 };
-    read(sock, get_max_player_buf, sizeof(get_max_player_buf));
-    char* colon = strchr(get_max_player_buf, ':');
-    if (colon != NULL) {
-        *max_players = (atoi(colon + 1));
-    }
+    memset(players, 0, sizeof(*players));
+    parse_names(players_msg, players);
+    free(players_msg);
+
+    char *colon = strchr(amount_msg, ':');
+    if (colon != NULL) *max_players = atoi(colon + 1);
+    free(amount_msg);
 
     int flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK); // non blocking mode
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 
     free(ip);
+    free(name);
+
     return sock;
 }
 
