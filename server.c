@@ -397,13 +397,6 @@ int main() {
             pthread_cond_wait(&queue_cond, &queue_lock);
         }
 
-        if (waiting_player_count < max_players) {
-            printf("Server closed!\n");
-            pthread_join(thread_io, NULL);
-            close(server_fd);
-            return 0;
-        }
-
         // enqueue message received from client
         MessageEntry *entry;
         while ((entry = STAILQ_FIRST(&message_queue)) != NULL) {
