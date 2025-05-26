@@ -107,6 +107,7 @@ int main() {
 
     wrefresh(win_user);
     wrefresh(win_hand);
+    wrefresh(win_server);
     // ---- END UI INIT ----
 
 
@@ -134,6 +135,10 @@ int main() {
         while ((parsed_message_end = strchr(recv_buffer, '\n')) != NULL) { // '\n' is server delimiter between message types
 
             *parsed_message_end = '\0';
+
+
+            send_message(sock, "DEBUG", players[client_position]);
+            send_message(sock, "DEBUG", recv_buffer);
 
             // individual message parsing
             if (strstr(recv_buffer, "PLAYERS")) {
@@ -212,10 +217,12 @@ int main() {
                 }
 
                 has_won_hand = 0;
-                animation_flag = 0; // enable animation
+                animation_flag = 0;
                 flushinp();
 
-                send_message(sock, "Received", "Deal");
+                char thisisdumb[10];
+                snprintf(thisisdumb, sizeof(thisisdumb), "%i Deal", client_position);
+                send_message(sock, "Received", thisisdumb);
             }
 
             else if (strstr(recv_buffer, "LOSER")) {
@@ -348,17 +355,10 @@ int main() {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
                     }
                     add_message(display, msg, &line_count, &message_dirty);
-                }
-            }
 
-            else if (strstr(recv_buffer, "PASS")) {
-                char* colon = strchr(recv_buffer, ':');
-                if (colon != NULL) {
-                    int player_who_passed = atoi(colon + 1);
-                    char msg[60];
-                    snprintf(msg, sizeof(msg), "%s has passed.", players[player_who_passed]);
-                    line_count--;
-                    add_message(display, msg, &line_count, &message_dirty);
+                    char thisisdumb[10];
+                    snprintf(thisisdumb, sizeof(thisisdumb), "%i Turn", client_position);
+                    send_message(sock, "Received", thisisdumb);
                 }
             }
 
@@ -394,7 +394,7 @@ int main() {
 
         // waiting room
         if (!all_players_connected) {
-
+            animation_flag = 1;
             if(!has_cleared) {
                 memset(display, 0, sizeof(display));
                 werase(win_server);
@@ -405,7 +405,6 @@ int main() {
             }
 
             game_start_flag = 1;
-            animation_flag = 0; // ensure animation plays again when reconnected
             char* waiting_msg = " Waiting for players to connect";
             char* dots[] = { " ", ". ", ".. ", "... "};
             int num_frames = 4;
@@ -439,6 +438,7 @@ int main() {
             // enable input
             keypad(win_hand, true);
             nodelay(win_hand, true); // make input non-blocking
+            animation_flag = 0;
             game_start_flag = 0;
         }
 
