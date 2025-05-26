@@ -136,10 +136,6 @@ int main() {
 
             *parsed_message_end = '\0';
 
-
-            send_message(sock, "DEBUG", players[client_position]);
-            send_message(sock, "DEBUG", recv_buffer);
-
             // individual message parsing
             if (strstr(recv_buffer, "PLAYERS")) {
                 memset(players, 0, sizeof(players));
