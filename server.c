@@ -193,6 +193,7 @@ void* io_thread(void* arg) {
                     send_message(client_sockets[i], "TURN", str);
                 }
                 player_at_turn = 0;
+                has_dealt = 0;
             }
 
             pthread_mutex_unlock(&player_lock);
