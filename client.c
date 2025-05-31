@@ -179,10 +179,6 @@ int main() {
                 highlight = 0;
             }
 
-            else if (strstr(recv_buffer, "RESET")) {
-                line_count--;
-            }
-
             else if (strstr(recv_buffer, "DEAL")) {
                 memset(selected_cards, 0, sizeof(selected_cards)); // reset
                 memset(player_deck, 0, sizeof(player_deck)); // reset
@@ -343,7 +339,7 @@ int main() {
                 }
             }
 
-            else if (strstr(recv_buffer, "TURN")) {
+            else if (strstr(recv_buffer, "TURN") || strstr(recv_buffer, "RESET_TURN")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon != NULL) {
                     int player_at_turn = atoi(colon + 1);
@@ -355,6 +351,7 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
                     }
+                    if (strstr(recv_buffer, "RESET_TURN")) line_count--;
                     add_message(display, msg, &line_count, &message_dirty);
 
                     char thisisdumb[10];
@@ -362,6 +359,8 @@ int main() {
                     send_message(sock, "Received", thisisdumb);
                 }
             }
+
+
 
             else if (strstr(recv_buffer, "PASS")) {
                 char* colon = strchr(recv_buffer, ':');
@@ -442,14 +441,9 @@ int main() {
             animation_flag = 0;
             game_start_flag = 0;
 
-            for (int i = 0; i < hand_size; i++) {
-                player_deck[i].suit = 0;
-                player_deck[i].rank = 0;
-            }
-
             int sum = 0;
             for (int i = 0; i < hand_size; i++) {
-                sum |= (int) player_deck[i].rank;
+                sum += (int) player_deck[i].rank;
             }
 
             if (sum == 0) {
