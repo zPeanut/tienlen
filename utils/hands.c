@@ -73,7 +73,7 @@ int is_valid_hand(Card *hand1, Card *hand2, int size1, int size2) {
         return 0;
     }
 
-    if (type1 == type2) {
+    if (type1 == type2 && size1 == size2) {
         return 1;
     }
 
@@ -142,7 +142,7 @@ int is_hand_higher(Card *hand1, Card *hand2, int size1, int size2) {
     Hand type1 = get_hand_type(hand1, size1);
     Hand type2 = get_hand_type(hand2, size2);
 
-    if (type1 != type2) {
+    if (type1 != type2 || size1 != size2) {
         int hand1_is_bomb = (type1 == QUADS) || (type1 == ZWEI_PAAR_STRASSE);
         int hand2_is_zwei = 0;
 
@@ -156,29 +156,18 @@ int is_hand_higher(Card *hand1, Card *hand2, int size1, int size2) {
         return 0;
     }
 
-    if (type1 == HIGH) {
-        if (hand1[0].rank == ZWEI && hand2[0].rank == ZWEI) {
-            return compare_suits(hand1[0].suit, hand2[0].suit);
-        } else if (hand1[0].rank == ZWEI) {
-            return 1;
-        } else if (hand2[0].rank == ZWEI) {
+    switch (type1) {
+        case HIGH:
+            return compare_ranks(hand1[0].rank, hand2[0].rank);
+        case PAIR:
+        case TRIPS:
+            return compare_ranks(hand1[0].rank, hand2[0].rank) ? 1 : compare_suits(get_max_suit(hand1, size1), get_max_suit(hand2, size2));
+        case STRASSE:
+        case ZWEI_PAAR_STRASSE:
+            return compare_cards(get_highest_card(hand1, size1), get_highest_card(hand2, size2));
+        default:
             return 0;
-        } else {
-            return compare_ranks(hand1[0].rank, hand2[0].rank);
-        }
-    } else if (type1 == PAIR || type1 == TRIPS) {
-        if (hand1[0].rank != hand2[0].rank) {
-            return compare_ranks(hand1[0].rank, hand2[0].rank);
-        }
-
-        return compare_suits(get_max_suit(hand1, size1), get_max_suit(hand2, size2));
-    } else if (type1 == STRASSE) {
-        Card highest1 = get_highest_card(hand1, size1);
-        Card highest2 = get_highest_card(hand2, size2);
-
-        return compare_cards(highest1, highest2);
     }
-    return 0;
 }
 
 
