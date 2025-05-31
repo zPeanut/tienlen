@@ -561,6 +561,45 @@ int main() {
                     }
                 }
 
+            } else if(strstr(entry->message.buffer, "RESET")) {
+                char* colon = strchr(entry->message.buffer, ':');
+                if (colon != NULL) {
+                    int player_who_reset = atoi(colon + 1);
+
+                    pthread_mutex_lock(&player_lock);
+
+                    Deck *deck = malloc(sizeof(*deck));
+                    init_deck(deck);
+                    shuffle_deck(deck);
+                    int deck_index = 0;
+
+                    for (int i = 0; i < max_players; i++) {
+                        if (client_sockets[i] == -1) continue;
+
+                        char deal_msg[256] = {0};
+                        for (int j = 0; j < HAND_SIZE; j++) {
+                            if (deck->cards[deck_index].suit < PIK || deck->cards[deck_index].suit > HERZ) {
+                                printf("Error dealing cards.\n");
+                                exit(1);
+                            }
+                            hands[i][j] = deck->cards[deck_index++];
+
+                            char card_str[10];
+                            int suit = hands[i][j].suit;
+                            int rank = hands[i][j].rank;
+                            snprintf(card_str, sizeof(card_str), "%d,%d%c", suit, rank, (j < HAND_SIZE - 1 ? ';' : '\0'));
+                            strncat(deal_msg, card_str, sizeof(deal_msg) - strlen(deal_msg) - 1);
+                        }
+                        send_message(client_sockets[i], "DEAL", deal_msg);
+                    }
+
+                    round_has_played = 0;
+                    free(deck);
+
+                    memset(passed_players, 0, sizeof(passed_players));
+                    memset(exempt_players, 0, sizeof(exempt_players));
+                    pthread_mutex_unlock(&player_lock);
+                }
             }
 
             else if(strstr(entry->message.buffer, "PLAYED")) {

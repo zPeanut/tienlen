@@ -34,6 +34,7 @@ int main() {
     int client_position = 0;                // get current player array position (used for turns and highlight)
     char display[32][MAX_MESSAGE_LENGTH];  // 32 strings with max message length
     int game_start_flag = 1;
+    int hand_empty_check = 0;
     int hand_size = HAND_SIZE;              // max win_hand size (always 13, even if fewer than 4 players are connected)
     int hand_type = 0;
     int hand_dirty = 1;
@@ -176,6 +177,10 @@ int main() {
                 add_message(display, error_msg, &line_count, &message_dirty);
                 memset(selected_cards, 0, sizeof(selected_cards));
                 highlight = 0;
+            }
+
+            else if (strstr(recv_buffer, "RESET")) {
+                line_count--;
             }
 
             else if (strstr(recv_buffer, "DEAL")) {
@@ -436,6 +441,23 @@ int main() {
             nodelay(win_hand, true); // make input non-blocking
             animation_flag = 0;
             game_start_flag = 0;
+
+            for (int i = 0; i < hand_size; i++) {
+                player_deck[i].suit = 0;
+                player_deck[i].rank = 0;
+            }
+
+            int sum = 0;
+            for (int i = 0; i < hand_size; i++) {
+                sum |= (int) player_deck[i].rank;
+            }
+
+            if (sum == 0) {
+                char msg[4];
+                snprintf(msg, sizeof(msg), "%i", client_position);
+                send_message(sock, "RESET", msg);
+                animation_flag = 1;
+            }
         }
 
         // -- animation begin --
