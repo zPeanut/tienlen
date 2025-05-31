@@ -599,11 +599,7 @@ int main() {
                     player_at_turn = 0;
                     char turn_msg[10];
                     snprintf(turn_msg, sizeof(turn_msg), "%d", player_at_turn);
-                    for (int i = 0; i < max_players; i++) {
-                        if (client_sockets[i] != -1) {
-                            send_message(client_sockets[i], "RESET_TURN", turn_msg);
-                        }
-                    }
+                    send_message(client_sockets[player_who_reset], "TURN", turn_msg);
 
                     memset(passed_players, 0, sizeof(passed_players));
                     memset(exempt_players, 0, sizeof(exempt_players));

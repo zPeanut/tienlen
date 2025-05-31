@@ -339,7 +339,7 @@ int main() {
                 }
             }
 
-            else if (strstr(recv_buffer, "TURN") || strstr(recv_buffer, "RESET_TURN")) {
+            else if (strstr(recv_buffer, "TURN")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon != NULL) {
                     int player_at_turn = atoi(colon + 1);
@@ -351,7 +351,6 @@ int main() {
                     } else {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
                     }
-                    if (strstr(recv_buffer, "RESET_TURN")) line_count--;
                     add_message(display, msg, &line_count, &message_dirty);
 
                     char thisisdumb[10];
