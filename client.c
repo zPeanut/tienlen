@@ -513,7 +513,6 @@ int main() {
             char* str_straight_length = int_to_str(straight_length);
             char* str_ret_hand_type = return_hand_type(hand_type);
 
-            snprintf(str, sizeof(str), "%i", straight_length);
             snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ",
                      (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str_straight_length : ""),
                      (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? "er " : ""),
