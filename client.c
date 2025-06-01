@@ -173,7 +173,14 @@ int main() {
             }
 
             else if (strstr(recv_buffer, "ERROR")) {
-                char* error_msg = "Cannot pass first. Play a valid hand!";
+                char* colon = strchr(recv_buffer, ':');
+                char error_msg[256];
+
+                if (colon != NULL) {
+                    char* msg = colon + 1;
+                    snprintf(error_msg, sizeof(error_msg), "%s", msg);
+                }
+
                 line_count--;
                 add_message(display, error_msg, &line_count, &message_dirty);
                 memset(selected_cards, 0, sizeof(selected_cards));
