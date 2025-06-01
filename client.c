@@ -320,15 +320,13 @@ int main() {
                     snprintf(msg, sizeof(msg), "%s played: ", players[player_who_played]);
 
                     char *card = strtok(cards_start, ";");
-                    int index = 0;
                     while (card) {
                         int suit, rank;
                         sscanf(card, "%d,%d", &suit, &rank);
 
                         Card temp_card = { (Suit) suit, (Rank) rank };
-                        received_hand[index++] = temp_card;
+                        received_hand[received_hand_size++] = temp_card;
 
-                        received_hand_size++;
                         char *card_str = return_card(temp_card);
                         strncat(msg, card_str, sizeof(msg) - strlen(msg) - 1);
                         strncat(msg, " ", sizeof(msg) - strlen(msg) - 1);
@@ -336,7 +334,8 @@ int main() {
                         free(card_str);
                         card = strtok(NULL, ";");
                     }
-                    hand_type = get_hand_type(received_hand, index);
+
+                    hand_type = get_hand_type(received_hand, received_hand_size);
 
                     if (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE) {
                         straight_length = (hand_type == ZWEI_PAAR_STRASSE) ? received_hand_size / 2 : received_hand_size;
