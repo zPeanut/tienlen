@@ -58,6 +58,12 @@ void draw_user_list(int width, int height, int line_x, int player_count, int* sc
     }
 }
 
+char* int_to_str(int src) {
+    char* buf = malloc( 10); // this should usually never be over 10 unless you are converting a really large number into a str
+    snprintf(buf, sizeof(buf), "%i", src);
+    return buf;
+}
+
 void add_message(char (*messages)[MAX_MESSAGE_LENGTH], char* buf, int *line_count, int *dirty_flag) {
 
     if (*line_count < 10) {
