@@ -13,6 +13,7 @@
 #include "utils/conn_utils.h"
 #include "utils/draw_utils.h"
 #include "utils/hands.h"
+#include "utils/string_utils.h"
 
 int waiting_player_count = 0;
 
@@ -208,9 +209,9 @@ int main() {
                 }
 
                 if (count == 4) {
-                    char msg[2] = { 0 };
-                    snprintf(msg, sizeof(msg), "%i", client_position);
+                    char* msg = int_to_str(client_position);
                     send_message(sock, "INSTANT_WIN", msg);
+                    free(msg);
                 }
 
                 has_won_hand = 0;
@@ -359,8 +360,6 @@ int main() {
                 }
             }
 
-
-
             else if (strstr(recv_buffer, "PASS")) {
                 char* colon = strchr(recv_buffer, ':');
                 if (colon != NULL) {
@@ -446,10 +445,11 @@ int main() {
             }
 
             if (sum == 0) {
-                char msg[4];
-                snprintf(msg, sizeof(msg), "%i", client_position);
+                char* msg = int_to_str(client_position);
                 send_message(sock, "RESET", msg);
                 animation_flag = 1;
+
+                free(msg);
             }
         }
 
@@ -504,12 +504,12 @@ int main() {
             box(win_server, 0, 0);  // Redraw border
 
             char hand_type_str[50] = {0};
-            char str[3];
+            char* str_straight_length = int_to_str(straight_length);
             char* str_ret_hand_type = return_hand_type(hand_type);
 
             snprintf(str, sizeof(str), "%i", straight_length);
             snprintf(hand_type_str, sizeof(hand_type_str), " %s%s%s ",
-                     (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str : ""),
+                     (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? str_straight_length : ""),
                      (hand_type == STRASSE || hand_type == ZWEI_PAAR_STRASSE ? "er " : ""),
                      str_ret_hand_type);
 
@@ -532,6 +532,7 @@ int main() {
             wattroff(win_server, COLOR_PAIR(PURPLE));
 
             free(str_ret_hand_type);
+            free(str_straight_length);
 
             for (int i = 0; i < line_count; ++i) {
                 int y1 = i * 2 + 2; // +1 offset if box border exists
@@ -590,12 +591,6 @@ int main() {
             message_dirty = 0;
         }
         // --- END UI SECTION ---
-
-
-        // --- BEGIN GAME LOGIC ---
-
-        // --- END GAME LOGIC ---
-
 
         // --- PARSE INPUT ---
         choice = wgetch(win_hand);
@@ -718,10 +713,9 @@ int main() {
                             }
                         } else {
                             // PASSED
-                            char buf[10] = {0};
-                            snprintf(buf, sizeof(buf), "%i", client_position);
+                            char* buf = int_to_str(client_position);
                             send_message(sock, "PASS", buf);
-                            has_played = 1;
+                            free(buf);
 
                             line_count--;
                             add_message(display, "You passed.", &line_count, &message_dirty);

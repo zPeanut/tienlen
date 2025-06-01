@@ -16,6 +16,7 @@
 #include "utils/conn_utils.h"
 #include "utils/queue_utils.h"
 #include "utils/cards.h"
+#include "utils/string_utils.h"
 
 int client_sockets[NUM_PLAYERS];
 int exempt_players[NUM_PLAYERS];
@@ -142,11 +143,11 @@ void* io_thread(void* arg) {
 
             for (int i = 0; i < waiting_player_count; i++) {
                 if (client_sockets[i] != -1) {
-                    char buffer[12];
-                    snprintf(buffer, sizeof(buffer), "%i", player_count);
-
+                    char* buffer = int_to_str(player_count);
                     printf("Sent to %s: AMOUNT:%s\n", players[i], buffer);
                     send_message(client_sockets[i], "AMOUNT", buffer);
+
+                    free(buffer);
                 }
             }
 
@@ -302,14 +303,15 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
     if (winner_index != -1) {
         for (int i = 0; i < max_players; i++) {
             if (client_sockets[i] != -1) {
-                char msg[12] = { 0 };
-                snprintf(msg, sizeof(msg), "%i", winner_index);
+                char* msg = int_to_str(winner_index);
 
                 printf("Sent to %s: WIN_HAND:%s\n", players[i], msg);
                 send_message(client_sockets[i], "WIN_HAND", msg);
 
                 printf("Sent to %s: TURN:%s\n", players[i], msg);
                 send_message(client_sockets[i], "TURN", msg);
+
+                free(msg);
             }
         }
 
@@ -322,10 +324,11 @@ void get_next_player(int max_players, int* passed_players, int* player_turn, cha
     } else {
         for (int i = 0; i < max_players; i++) {
             if (client_sockets[i] != -1) {
-                char msg[10] = { 0 };
-                snprintf(msg, sizeof(msg), "%i", *player_turn);
+                char* msg = int_to_str(*player_turn);
                 printf("Sent to %s: TURN:%s\n", players[i], msg);
                 send_message(client_sockets[i], "TURN", msg);
+
+                free(msg);
             }
         }
     }
@@ -419,10 +422,11 @@ int main() {
 
                         for (int i = 0; i < max_players; i++) {
                             if (client_sockets[i] != -1 && i != player_at_turn) {
-                                char msg[10] = {0};
-                                snprintf(msg, sizeof(msg), "%i", player_at_turn);
+                                char* msg = int_to_str(player_at_turn);
                                 printf("Sent to %s: PASS:%s\n", players[i], msg);
                                 send_message(client_sockets[i], "PASS", msg);
+
+                                free(msg);
                             }
                         }
 
@@ -447,8 +451,7 @@ int main() {
 
                     for (int i = 0; i < max_players; i++) {
                         if (client_sockets[i] != -1) {
-                            char msg[2] = {0};
-                            snprintf(msg, sizeof(msg), "%i", player_who_won);
+                            char* msg = int_to_str(player_who_won);
 
                             if (strstr(entry->message.buffer, "INSTANT_WIN")) {
                                 printf("Sent to %s: INSTANT_WIN:%i\n", players[i], player_who_won);
@@ -458,6 +461,8 @@ int main() {
                                 printf("Sent to %s: WIN_ROUND:%i\n", players[i], player_who_won);
                                 send_message(client_sockets[i], "WIN_ROUND", msg);
                             }
+
+                            free(msg);
                         }
                     }
 
@@ -561,7 +566,9 @@ int main() {
                     }
                 }
 
-            } else if(strstr(entry->message.buffer, "RESET")) {
+            }
+
+            else if(strstr(entry->message.buffer, "RESET")) {
                 char* colon = strchr(entry->message.buffer, ':');
                 if (colon != NULL) {
                     int player_who_reset = atoi(colon + 1);

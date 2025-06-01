@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "cards.h"
+#include "string_utils.h"
 
 void draw_hand(WINDOW *win, int y, int x, int loop_limit, Card *player_deck, int highlight, const int *selected_cards) {
     for (int i = 0; i < loop_limit; i++) {
@@ -48,12 +49,12 @@ void draw_user_list(int width, int height, int line_x, int player_count, int* sc
         if (strlen(players[i]) > 0) {
             if (strcmp(players[i], name) == 0) wattron(win, COLOR_PAIR(CYAN));
 
-            char sc_str[4]; // unlikely score ever reaches 100+ but w/e
-            snprintf(sc_str, sizeof(sc_str), "%i", score[i]);
-
+            char* sc_str = int_to_str(score[i]); // unlikely score ever reaches 100+ but w/e
             mvwprintw(win, 5 + i * 2, 2, "%s", players[i]);
             wattroff(win, COLOR_PAIR(CYAN));
-            mvwprintw(win, 5 + i * 2, width - line_x - 3 - strlen(sc_str), "%s", sc_str);
+            mvwprintw(win, 5 + i * 2, (int) (width - line_x - 3 - strlen(sc_str)), "%s", sc_str);
+
+            free(sc_str);
         }
     }
 }
