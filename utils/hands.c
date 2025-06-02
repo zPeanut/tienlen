@@ -65,7 +65,7 @@ int is_hand_two(Card *hand, int size) {
     return 1;
 }
 
-int is_valid_hand(Card *hand1, Card *hand2, int size1, int size2) {
+int compare_hands(Card *hand1, Card *hand2, int size1, int size2) {
     int type1 = get_hand_type(hand1, size1);
     int type2 = get_hand_type(hand2, size2);
 
