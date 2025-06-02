@@ -357,6 +357,7 @@ int main() {
                         turn = 1;
                     } else {
                         snprintf(msg, sizeof(msg), "%s's turn.", players[player_at_turn]);
+                        turn = 0;
                     }
                     add_message(display, msg, &line_count, &message_dirty);
 
