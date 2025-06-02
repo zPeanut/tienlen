@@ -17,15 +17,18 @@
 #include "utils/queue_utils.h"
 #include "utils/cards.h"
 #include "utils/string_utils.h"
+#include "utils/hands.h"
 
 int client_sockets[NUM_PLAYERS];
 int exempt_players[NUM_PLAYERS];
 int running = 1;
 int server_fd;
-int waiting_player_count = 0;
+int waiting_player_count = 0; // player count in lobby
 int player_at_turn = 0;
-int round_has_played = 0;
-int last_played_player = -1;
+int round_has_played = 0; // check if any cards have been played in current round
+
+int previous_hand_size = 0;
+Card previous_hand[HAND_SIZE] = { 0 };
 
 STAILQ_HEAD(stailq_head, message_entry) message_queue;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -122,7 +125,6 @@ void* io_thread(void* arg) {
             waiting_player_count++;
             printf("%s connected. (%d/%d)\n", name, waiting_player_count, player_count);
 
-
             // comma seperated player list
             char player_list_cn[256] = { 0 };
             for (int i = 0; i < player_count; i++) {
@@ -156,6 +158,9 @@ void* io_thread(void* arg) {
                 init_deck(deck);
                 shuffle_deck(deck);
 
+                memset(previous_hand, 0, sizeof(previous_hand));
+                previous_hand_size = 0;
+
                 int deck_index = 0;
                 for (int i = 0; i < player_count; i++) {
                     if (client_sockets[i] == -1) continue;
@@ -186,12 +191,9 @@ void* io_thread(void* arg) {
             }
 
             if (has_dealt) {
-                char str[2];
-                snprintf(str, sizeof(str), "%i", 0);
-
                 for (int i = 0; i < player_count; i++) {
                     printf("Sent to %s: TURN:%i\n", players[i], 0);
-                    send_message(client_sockets[i], "TURN", str);
+                    send_message(client_sockets[i], "TURN", 0); // let first connected player always begin
                 }
                 player_at_turn = 0;
                 has_dealt = 0;
@@ -392,7 +394,6 @@ int main() {
     int passed_players[max_players];
     memset(passed_players, 0, sizeof(passed_players));
 
-
     while(running) {
         pthread_mutex_lock(&queue_lock);
 
@@ -509,6 +510,9 @@ int main() {
                                 }
                                 hands[i][j] = deck->cards[deck_index++];
 
+                                memset(previous_hand, 0, sizeof(previous_hand));
+                                previous_hand_size = 0;
+
                                 char card_str[10];
                                 int suit = hands[i][j].suit;
                                 int rank = hands[i][j].rank;
@@ -615,35 +619,68 @@ int main() {
             }
 
             else if(strstr(entry->message.buffer, "PLAYED")) {
+                char msg[256];
+                strncpy(msg, entry->message.buffer, 256);
                 char* colon = strchr(entry->message.buffer, ':');
                 int player_who_played = 0;
-                round_has_played = 1;
+
                 if (colon != NULL) {
                     player_who_played = atoi(colon + 1);
                 }
 
-                for (int i = 0; i < max_players; i++) {
-                    if (i != player_who_played) {
-                        printf("Sent to %s: %s\n", players[i], entry->message.buffer);
-                        write(client_sockets[i], entry->message.buffer, strlen(entry->message.buffer));
-                    }
+                int sum = 0;
+                for (int i = 0; i < HAND_SIZE; i++) {
+                    sum += (int) previous_hand[i].rank;
                 }
 
-                Card played_deck[HAND_SIZE];
+                // parse played deck
+                Card played_hand[HAND_SIZE];
+                int played_hand_size = 0;
 
                 char *token = strtok(entry->message.buffer + 9, ";"); // skip prefix
 
+                // TODO: refactor this code
                 for (int i = 0; token; i++) {
                     int suit, rank;
                     sscanf(token, "%d,%d", &suit, &rank);
-                    played_deck[i].suit = (Suit) suit;
-                    played_deck[i].rank = (Rank) rank;
+
+                    if (sum == 0) {
+                        previous_hand[previous_hand_size].suit = (Suit) suit;
+                        previous_hand[previous_hand_size].rank = (Rank) rank;
+                        previous_hand_size++;
+                    }
+
+                    played_hand[played_hand_size].suit = (Suit) suit;
+                    played_hand[played_hand_size].rank = (Rank) rank;
+                    played_hand_size++;
 
                     token = strtok(NULL, ";");
                 }
 
-                last_played_player = player_who_played;
-                get_next_player(max_players, passed_players, &player_at_turn, players);
+                // check if move is correct, if so, send received message in its entirety back to all clients where its parsed
+                // if player is first in turn, let him always lay
+
+
+                if (get_hand_type(played_hand, played_hand_size) == INVALID) {
+                    printf("Sent to %s: ERROR:Invalid hand!\n", players[player_who_played]);
+                    send_message(client_sockets[player_who_played], "ERROR", "Invalid hand!");
+
+                } else if (round_has_played == 1 && !is_hand_higher(played_hand, previous_hand, played_hand_size, previous_hand_size) && !compare_hands(played_hand, previous_hand, played_hand_size, previous_hand_size)) {
+                    printf("Sent to %s: ERROR:Hand is not higher than previous hand!\n", players[player_who_played]);
+                    send_message(client_sockets[player_who_played], "ERROR", "Hand is not higher than previous hand!");
+
+                } else {
+                    for (int i = 0; i < max_players; i++) {
+                        printf("Sent to %s: %s\n", players[i], msg);
+                        send_message(client_sockets[i], "", msg); // send identical message back
+                    }
+
+                    round_has_played = 1;
+                    get_next_player(max_players, passed_players, &player_at_turn, players);
+
+                    memcpy(previous_hand, played_hand, played_hand_size * sizeof(Card)); // move current hand to previous hand
+                    memset(played_hand, 0, sizeof(played_hand)); // reset played hand to prevent having left over data
+                }
             }
 
             // remove from queue
